@@ -1,0 +1,145 @@
+{
+  "identity": {
+    "name": "Smart Campus Management System",
+    "tone": "Academic, Modern, Professional, Efficient",
+    "theme_mode": "system",
+    "keywords": ["Clean", "Data-Driven", "Responsive", "Accessible"]
+  },
+  "typography": {
+    "primary_font": "Manrope",
+    "secondary_font": "Inter",
+    "mono_font": "JetBrains Mono",
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-bold tracking-tight",
+      "h2": "text-3xl font-bold tracking-tight",
+      "h3": "text-2xl font-semibold tracking-tight",
+      "h4": "text-xl font-semibold",
+      "body": "text-base leading-relaxed text-muted-foreground",
+      "small": "text-sm font-medium leading-none"
+    },
+    "imports": [
+      "@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');"
+    ]
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "light": "hsl(226, 70%, 55%)", 
+        "dark": "hsl(226, 70%, 65%)",
+        "name": "Academic Indigo"
+      },
+      "secondary": {
+        "light": "hsl(210, 40%, 96%)",
+        "dark": "hsl(217, 33%, 17%)",
+        "name": "Slate Surface"
+      },
+      "accent": {
+        "light": "hsl(38, 92%, 50%)",
+        "dark": "hsl(38, 92%, 50%)",
+        "name": "Honor Gold"
+      },
+      "background": {
+        "light": "hsl(210, 40%, 98%)",
+        "dark": "hsl(222, 47%, 11%)"
+      },
+      "card": {
+        "light": "#ffffff",
+        "dark": "hsl(217, 33%, 15%)"
+      }
+    },
+    "usage_rules": {
+      "text_primary": "text-slate-900 dark:text-slate-50",
+      "text_secondary": "text-slate-500 dark:text-slate-400",
+      "border_subtle": "border-slate-200 dark:border-slate-800",
+      "focus_ring": "ring-indigo-500/20"
+    }
+  },
+  "layout_strategy": {
+    "dashboard_grid": {
+      "type": "Bento Grid",
+      "classes": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6",
+      "rules": "Use col-span-2 for charts, col-span-1 for stats cards. Fill height with h-full."
+    },
+    "spacing": {
+      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "section_gap": "gap-8"
+    },
+    "sidebar": {
+      "width": "w-64",
+      "collapsed_width": "w-16",
+      "behavior": "Sticky sidebar with collapsible functionality on mobile"
+    }
+  },
+  "component_styling": {
+    "Card": {
+      "base": "bg-card text-card-foreground rounded-xl border border-border/50 shadow-sm transition-all duration-200 hover:shadow-md hover:border-indigo-500/20",
+      "header": "flex flex-row items-center justify-between space-y-0 pb-2",
+      "content": "p-6 pt-0"
+    },
+    "Button": {
+      "base": "rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+      "variants": {
+        "default": "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20",
+        "outline": "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        "ghost": "hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400"
+      }
+    },
+    "Input": {
+      "base": "h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border-b border-white/20 dark:border-white/10",
+    "gradients": {
+      "hero_overlay": "bg-gradient-to-r from-indigo-900/90 to-slate-900/80",
+      "active_item": "bg-gradient-to-r from-indigo-50 to-transparent dark:from-indigo-950/50 dark:to-transparent border-l-4 border-indigo-500"
+    },
+    "shadows": {
+      "soft": "shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)]",
+      "glow": "shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+    }
+  },
+  "images": {
+    "login_hero": {
+      "url": "https://images.unsplash.com/photo-1759889392274-246af1a984ba?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBjb2xsZWdlJTIwY2FtcHVzJTIwYnVpbGRpbmclMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzczNDk4NDQyfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern College Campus Building",
+      "position": "object-cover object-center w-full h-full"
+    },
+    "placeholders": {
+      "student_avatar": "https://images.unsplash.com/photo-1656075067365-bf13fe1cc0e1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxjb2xsZWdlJTIwc3R1ZGVudCUyMGFuZCUyMHByb2Zlc3NvciUyMHBvcnRyYWl0c3xlbnwwfHx8fDE3NzM0OTg0NTB8MA&ixlib=rb-4.1.0&q=85",
+      "faculty_avatar": "https://images.unsplash.com/photo-1559872553-c2607bb6259f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxjb2xsZWdlJTIwc3R1ZGVudCUyMGFuZCUyMHByb2Zlc3NvciUyMHBvcnRyYWl0c3xlbnwwfHx8fDE3NzM0OTg0NTB8MA&ixlib=rb-4.1.0&q=85",
+      "admin_avatar": "https://images.unsplash.com/photo-1758270703144-bc54bafd124d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwzfHxjb2xsZWdlJTIwc3R1ZGVudCUyMGFuZCUyMHByb2Zlc3NvciUyMHBvcnRyYWl0c3xlbnwwfHx8fDE3NzM0OTg0NTB8MA&ixlib=rb-4.1.0&q=85"
+    }
+  },
+  "iconography": {
+    "library": "lucide-react",
+    "style": "stroke-width={1.5} className='w-5 h-5'",
+    "usage": {
+      "dashboard": "LayoutDashboard",
+      "students": "GraduationCap",
+      "faculty": "Users",
+      "courses": "BookOpen",
+      "attendance": "CalendarCheck",
+      "marks": "FileBarChart",
+      "settings": "Settings",
+      "logout": "LogOut",
+      "notifications": "Bell"
+    }
+  },
+  "instructions_to_main_agent": {
+    "1": "Use 'Manrope' for all Headings (h1-h4) and 'Inter' for body text. Import via Google Fonts in index.css.",
+    "2": "Implement a 'Bento Grid' layout for the Dashboard: Use a 12-column grid where widgets span different sizes (col-span-3, col-span-6, etc.) to create visual interest.",
+    "3": "Theme: Force 'Indigo' as the primary brand color. Do NOT use default blue. Use slate-50/slate-950 for backgrounds to keep it professional.",
+    "4": "Components: Customize Shadcn components. Add 'rounded-xl' to Cards and Inputs for a modern feel. Remove sharp corners.",
+    "5": "Charts: Use Recharts with the defined palette (Indigo, Emerald, Amber, Rose). Avoid default colors.",
+    "6": "Authentication: Create a split-screen login page. Left side: High-res campus image with a dark indigo overlay. Right side: Login form.",
+    "7": "Role-Based: Ensure the sidebar menu dynamically changes based on the user role (Admin vs Student vs Faculty).",
+    "8": "Data Tables: Use zebra striping (odd:bg-muted/50) and compact density for Admin lists.",
+    "9": "Accessibility: Ensure all text has sufficient contrast. Use 'sr-only' for icon-only buttons.",
+    "10": "Motion: Add 'transition-all duration-200' to all interactive elements. Use 'hover:-translate-y-1' on dashboard cards."
+  },
+  "universal_guidelines": {
+    "avoid": ["Gradients on text", "Default browser alerts", "Times New Roman", "Full-screen loading spinners"],
+    "enforce": ["Loading skeletons", "Form validation with error messages", "Toast notifications for success/error", "Mobile responsive hamburger menu"]
+  }
+}
