@@ -25,6 +25,17 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'smartcampus_jwt_secret_2024_xK9mP2vL8
 JWT_ALGORITHM = 'HS256'
 
 app = FastAPI(title="Smart Campus Management System API")
+
+# --- YAHAN CORS MIDDLEWARE ADD KIYA GAYA HAI ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Ye line tumhare Phone aur PC dono ko allow karegi
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# -----------------------------------------------
+
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
@@ -150,7 +161,7 @@ async def login(req: LoginRequest):
 async def get_me(user=Depends(get_current_user)):
     return user
 
-# ─── STUDENT ROUTES ────────────────────────────────────────────────────────────
+# ─── STUDENT ROUTES ─────────────────────────────────────────────────────────────
 
 @api_router.get("/students")
 async def get_students(user=Depends(get_current_user), search: str = "", department_id: str = "", semester: int = 0, status: str = "", page: int = 1, limit: int = 50):
@@ -161,12 +172,10 @@ async def get_students(user=Depends(get_current_user), search: str = "", departm
             {'roll_number': {'$regex': search, '$options': 'i'}},
             {'email': {'$regex': search, '$options': 'i'}}
         ]
-    if department_id:
-        query['department_id'] = department_id
-    if semester > 0:
-        query['semester'] = semester
-    if status:
-        query['status'] = status
+    if department_id: query['department_id'] = department_id
+    if semester > 0: query['semester'] = semester
+    if status: query['status'] = status
+    
     total = await db.students.count_documents(query)
     students = await db.students.find(query, {'_id': 0}).skip((page - 1) * limit).limit(limit).to_list(limit)
     return {'students': students, 'total': total, 'page': page, 'pages': max(1, (total + limit - 1) // limit)}
@@ -184,11 +193,13 @@ async def create_student(data: StudentCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail='Not authorized')
     student_id = str(uuid.uuid4())
     user_id = str(uuid.uuid4())
+    
     await db.users.insert_one({
         'id': user_id, 'email': data.email,
         'password_hash': hash_pw('student123'),
         'name': data.full_name, 'role': 'student'
     })
+    
     student = {'id': student_id, 'user_id': user_id, **data.model_dump(), 'created_at': datetime.now(timezone.utc).isoformat()}
     await db.students.insert_one(student)
     student.pop('_id', None)
@@ -198,24 +209,29 @@ async def create_student(data: StudentCreate, user=Depends(get_current_user)):
 async def update_student(student_id: str, data: StudentCreate, user=Depends(get_current_user)):
     if user['role'] not in ['admin', 'faculty']:
         raise HTTPException(status_code=403, detail='Not authorized')
+    
     result = await db.students.update_one({'id': student_id}, {'$set': data.model_dump()})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail='Student not found')
+        
     updated = await db.students.find_one({'id': student_id}, {'_id': 0})
-    # Also update user name/email
-    await db.users.update_one({'id': updated.get('user_id')}, {'$set': {'name': data.full_name, 'email': data.email}})
+    if updated.get('user_id'):
+        await db.users.update_one({'id': updated.get('user_id')}, {'$set': {'name': data.full_name, 'email': data.email}})
     return updated
 
 @api_router.delete("/students/{student_id}")
 async def delete_student(student_id: str, user=Depends(get_current_user)):
     if user['role'] != 'admin':
         raise HTTPException(status_code=403, detail='Not authorized')
+        
     student = await db.students.find_one({'id': student_id}, {'_id': 0})
     if not student:
         raise HTTPException(status_code=404, detail='Student not found')
+        
     await db.students.delete_one({'id': student_id})
     if student.get('user_id'):
         await db.users.delete_one({'id': student['user_id']})
+        
     await db.attendance.delete_many({'student_id': student_id})
     await db.marks.delete_many({'student_id': student_id})
     return {'message': 'Student deleted successfully'}
@@ -242,11 +258,13 @@ async def create_faculty(data: FacultyCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail='Not authorized')
     fac_id = str(uuid.uuid4())
     user_id = str(uuid.uuid4())
+    
     await db.users.insert_one({
         'id': user_id, 'email': data.email,
         'password_hash': hash_pw('faculty123'),
         'name': data.name, 'role': 'faculty'
     })
+    
     fac = {'id': fac_id, 'user_id': user_id, **data.model_dump(), 'created_at': datetime.now(timezone.utc).isoformat()}
     await db.faculty.insert_one(fac)
     fac.pop('_id', None)
@@ -256,6 +274,7 @@ async def create_faculty(data: FacultyCreate, user=Depends(get_current_user)):
 async def update_faculty(faculty_id: str, data: FacultyCreate, user=Depends(get_current_user)):
     if user['role'] != 'admin':
         raise HTTPException(status_code=403, detail='Not authorized')
+    
     result = await db.faculty.update_one({'id': faculty_id}, {'$set': data.model_dump()})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail='Faculty not found')
@@ -266,9 +285,11 @@ async def update_faculty(faculty_id: str, data: FacultyCreate, user=Depends(get_
 async def delete_faculty(faculty_id: str, user=Depends(get_current_user)):
     if user['role'] != 'admin':
         raise HTTPException(status_code=403, detail='Not authorized')
+        
     fac = await db.faculty.find_one({'id': faculty_id}, {'_id': 0})
     if not fac:
         raise HTTPException(status_code=404, detail='Faculty not found')
+        
     await db.faculty.delete_one({'id': faculty_id})
     if fac.get('user_id'):
         await db.users.delete_one({'id': fac['user_id']})
@@ -312,10 +333,8 @@ async def delete_department(dept_id: str, user=Depends(get_current_user)):
 @api_router.get("/subjects")
 async def get_subjects(user=Depends(get_current_user), department_id: str = "", semester: int = 0):
     query = {}
-    if department_id:
-        query['department_id'] = department_id
-    if semester > 0:
-        query['semester'] = semester
+    if department_id: query['department_id'] = department_id
+    if semester > 0: query['semester'] = semester
     subjects = await db.subjects.find(query, {'_id': 0}).to_list(100)
     return {'subjects': subjects}
 
@@ -350,14 +369,13 @@ async def get_attendance(user=Depends(get_current_user), student_id: str = "", s
     query = {}
     if user['role'] == 'student':
         student = await db.students.find_one({'user_id': user['id']}, {'_id': 0})
-        if student:
-            query['student_id'] = student['id']
+        if student: query['student_id'] = student['id']
     elif student_id:
         query['student_id'] = student_id
-    if subject_id:
-        query['subject_id'] = subject_id
-    if date_val:
-        query['date'] = date_val
+        
+    if subject_id: query['subject_id'] = subject_id
+    if date_val: query['date'] = date_val
+    
     total = await db.attendance.count_documents(query)
     records = await db.attendance.find(query, {'_id': 0}).sort('date', -1).skip((page - 1) * limit).limit(limit).to_list(limit)
     return {'attendance': records, 'total': total}
@@ -366,6 +384,7 @@ async def get_attendance(user=Depends(get_current_user), student_id: str = "", s
 async def bulk_attendance(data: AttendanceBulkCreate, user=Depends(get_current_user)):
     if user['role'] not in ['admin', 'faculty']:
         raise HTTPException(status_code=403, detail='Not authorized')
+        
     records = []
     for r in data.records:
         records.append({
@@ -374,9 +393,11 @@ async def bulk_attendance(data: AttendanceBulkCreate, user=Depends(get_current_u
             'status': r['status'], 'marked_by': user['id'],
             'created_at': datetime.now(timezone.utc).isoformat()
         })
+        
     if records:
         await db.attendance.delete_many({'date': data.date, 'subject_id': data.subject_id})
         await db.attendance.insert_many(records)
+        
     return {'message': f'{len(records)} attendance records saved', 'count': len(records)}
 
 @api_router.get("/attendance/summary/{student_id}")
@@ -393,6 +414,7 @@ async def attendance_summary(student_id: str, user=Depends(get_current_user)):
     ]
     results = await db.attendance.aggregate(pipeline).to_list(50)
     subjects = {s['id']: s['name'] for s in await db.subjects.find({}, {'_id': 0}).to_list(100)}
+    
     summary = []
     for r in results:
         total = r['total']
@@ -411,12 +433,11 @@ async def get_marks(user=Depends(get_current_user), student_id: str = "", subjec
     query = {}
     if user['role'] == 'student':
         student = await db.students.find_one({'user_id': user['id']}, {'_id': 0})
-        if student:
-            query['student_id'] = student['id']
+        if student: query['student_id'] = student['id']
     elif student_id:
         query['student_id'] = student_id
-    if subject_id:
-        query['subject_id'] = subject_id
+        
+    if subject_id: query['subject_id'] = subject_id
     marks = await db.marks.find(query, {'_id': 0}).to_list(500)
     return {'marks': marks}
 
@@ -424,14 +445,17 @@ async def get_marks(user=Depends(get_current_user), student_id: str = "", subjec
 async def create_marks(data: MarksCreate, user=Depends(get_current_user)):
     if user['role'] not in ['admin', 'faculty']:
         raise HTTPException(status_code=403, detail='Not authorized')
+        
     total = data.internal_marks + data.practical_marks + data.final_marks
     percentage = round(total, 1)
     grade = calc_grade(percentage)
     result_status = 'Pass' if percentage >= 40 else 'Fail'
+    
     mark_data = {
         **data.model_dump(), 'total': total, 'percentage': percentage,
         'grade': grade, 'result_status': result_status, 'entered_by': user['id']
     }
+    
     existing = await db.marks.find_one({'student_id': data.student_id, 'subject_id': data.subject_id})
     if existing:
         await db.marks.update_one(
@@ -442,6 +466,7 @@ async def create_marks(data: MarksCreate, user=Depends(get_current_user)):
         mark_data['id'] = str(uuid.uuid4())
         mark_data['created_at'] = datetime.now(timezone.utc).isoformat()
         await db.marks.insert_one(mark_data)
+        
     result = await db.marks.find_one({'student_id': data.student_id, 'subject_id': data.subject_id}, {'_id': 0})
     return result
 
@@ -454,6 +479,7 @@ async def get_notices(user=Depends(get_current_user)):
         query['$or'] = [{'audience': 'all'}, {'audience': 'students'}]
     elif user['role'] == 'faculty':
         query['$or'] = [{'audience': 'all'}, {'audience': 'faculty'}]
+        
     notices = await db.notices.find(query, {'_id': 0}).sort('created_at', -1).to_list(100)
     return {'notices': notices}
 
@@ -461,6 +487,7 @@ async def get_notices(user=Depends(get_current_user)):
 async def create_notice(data: NoticeCreate, user=Depends(get_current_user)):
     if user['role'] not in ['admin', 'faculty']:
         raise HTTPException(status_code=403, detail='Not authorized')
+        
     notice = {
         'id': str(uuid.uuid4()), **data.model_dump(),
         'posted_by': user['name'], 'posted_by_id': user['id'],
@@ -485,10 +512,9 @@ async def get_complaints(user=Depends(get_current_user), status_filter: str = Qu
     query = {}
     if user['role'] == 'student':
         student = await db.students.find_one({'user_id': user['id']}, {'_id': 0})
-        if student:
-            query['student_id'] = student['id']
-    if status_filter:
-        query['status'] = status_filter
+        if student: query['student_id'] = student['id']
+        
+    if status_filter: query['status'] = status_filter
     complaints = await db.complaints.find(query, {'_id': 0}).sort('created_at', -1).to_list(100)
     return {'complaints': complaints}
 
@@ -497,7 +523,7 @@ async def create_complaint(data: ComplaintCreate, user=Depends(get_current_user)
     student = await db.students.find_one({'user_id': user['id']}, {'_id': 0})
     complaint = {
         'id': str(uuid.uuid4()),
-        'student_id': student['id'] if student else '',
+        'student_id': student['id'] if student else "",
         'student_name': user['name'],
         **data.model_dump(), 'status': 'pending', 'remarks': '',
         'created_at': datetime.now(timezone.utc).isoformat(),
@@ -511,12 +537,14 @@ async def create_complaint(data: ComplaintCreate, user=Depends(get_current_user)
 async def update_complaint(complaint_id: str, data: ComplaintUpdate, user=Depends(get_current_user)):
     if user['role'] != 'admin':
         raise HTTPException(status_code=403, detail='Not authorized')
+        
     result = await db.complaints.update_one(
         {'id': complaint_id},
         {'$set': {'status': data.status, 'remarks': data.remarks, 'updated_at': datetime.now(timezone.utc).isoformat()}}
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail='Complaint not found')
+        
     complaint = await db.complaints.find_one({'id': complaint_id}, {'_id': 0})
     return complaint
 
@@ -530,36 +558,39 @@ async def dashboard_stats(user=Depends(get_current_user)):
     total_subjects = await db.subjects.count_documents({})
     total_notices = await db.notices.count_documents({})
     pending_complaints = await db.complaints.count_documents({'status': 'pending'})
+    
     total_att = await db.attendance.count_documents({})
     present_att = await db.attendance.count_documents({'status': {'$in': ['present', 'late']}})
-    avg_attendance = round(present_att / total_att * 100, 1) if total_att > 0 else 0
-
+    avg_attendance = round((present_att / total_att) * 100, 1) if total_att > 0 else 0
+    
     dept_stats = await db.students.aggregate([
         {'$group': {'_id': '$department_id', 'count': {'$sum': 1}}}
     ]).to_list(50)
+    
     depts = {d['id']: d['name'] for d in await db.departments.find({}, {'_id': 0}).to_list(50)}
     dept_distribution = [{'name': depts.get(d['_id'], 'Unknown'), 'count': d['count']} for d in dept_stats]
-
+    
     attendance_trend = []
     for i in range(6, -1, -1):
-        day = (datetime.now(timezone.utc) - timedelta(days=i))
+        day = datetime.now(timezone.utc) - timedelta(days=i)
         date_str = day.strftime('%Y-%m-%d')
         day_name = day.strftime('%a')
+        
         day_total = await db.attendance.count_documents({'date': date_str})
         day_present = await db.attendance.count_documents({'date': date_str, 'status': {'$in': ['present', 'late']}})
-        pct = round(day_present / day_total * 100, 1) if day_total > 0 else 0
+        pct = round((day_present / day_total) * 100, 1) if day_total > 0 else 0
         attendance_trend.append({'date': date_str, 'day': day_name, 'percentage': pct})
-
+        
     recent_notices = await db.notices.find({}, {'_id': 0}).sort('created_at', -1).limit(5).to_list(5)
     recent_complaints = await db.complaints.find({}, {'_id': 0}).sort('created_at', -1).limit(5).to_list(5)
-
+    
     return {
         'total_students': total_students, 'total_faculty': total_faculty,
         'total_departments': total_departments, 'total_subjects': total_subjects,
         'total_notices': total_notices, 'pending_complaints': pending_complaints,
         'avg_attendance': avg_attendance, 'dept_distribution': dept_distribution,
-        'attendance_trend': attendance_trend,
-        'recent_notices': recent_notices, 'recent_complaints': recent_complaints
+        'attendance_trend': attendance_trend, 'recent_notices': recent_notices,
+        'recent_complaints': recent_complaints
     }
 
 @api_router.get("/dashboard/student")
@@ -567,33 +598,34 @@ async def student_dashboard(user=Depends(get_current_user)):
     student = await db.students.find_one({'user_id': user['id']}, {'_id': 0})
     if not student:
         raise HTTPException(status_code=404, detail='Student profile not found')
-
+        
+    student_id = student['id']
+    
     att_pipeline = [
-        {'$match': {'student_id': student['id']}},
-        {'$group': {'_id': None, 'total': {'$sum': 1},
-            'present': {'$sum': {'$cond': [{'$in': ['$status', ['present', 'late']]}, 1, 0]}}}}
+        {'$match': {'student_id': student_id}},
+        {'$group': {'_id': None, 'total': {'$sum': 1}, 'present': {'$sum': {'$cond': [{'$in': ['$status', ['present', 'late']]}, 1, 0]}}}}
     ]
     att_result = await db.attendance.aggregate(att_pipeline).to_list(1)
-    att_pct = round(att_result[0]['present'] / att_result[0]['total'] * 100, 1) if att_result and att_result[0]['total'] > 0 else 0
-
-    marks = await db.marks.find({'student_id': student['id']}, {'_id': 0}).to_list(50)
+    att_pct = round((att_result[0]['present'] / att_result[0]['total']) * 100, 1) if att_result and att_result[0]['total'] > 0 else 0
+    
+    marks = await db.marks.find({'student_id': student_id}, {'_id': 0}).to_list(50)
     subjects = {s['id']: s for s in await db.subjects.find({}, {'_id': 0}).to_list(100)}
     for m in marks:
         subj = subjects.get(m['subject_id'], {})
         m['subject_name'] = subj.get('name', 'Unknown')
         m['subject_code'] = subj.get('code', '')
+        
     avg_marks = round(sum(m['percentage'] for m in marks) / len(marks), 1) if marks else 0
-
-    notices = await db.notices.find(
-        {'$or': [{'audience': 'all'}, {'audience': 'students'}]}, {'_id': 0}
-    ).sort('created_at', -1).limit(5).to_list(5)
-    complaints = await db.complaints.find({'student_id': student['id']}, {'_id': 0}).sort('created_at', -1).to_list(10)
+    
+    notices = await db.notices.find({'$or': [{'audience': 'all'}, {'audience': 'students'}]}, {'_id': 0})\
+        .sort('created_at', -1).limit(5).to_list(5)
+        
+    complaints = await db.complaints.find({'student_id': student_id}, {'_id': 0}).sort('created_at', -1).to_list(10)
     dept = await db.departments.find_one({'id': student.get('department_id')}, {'_id': 0})
-
+    
     return {
-        'student': student, 'department': dept,
-        'attendance_percentage': att_pct, 'marks': marks,
-        'avg_marks': avg_marks, 'notices': notices,
+        'student': student, 'department': dept, 'attendance_percentage': att_pct,
+        'marks': marks, 'avg_marks': avg_marks, 'notices': notices,
         'complaints': complaints, 'total_subjects': len(marks)
     }
 
@@ -602,13 +634,15 @@ async def faculty_dashboard(user=Depends(get_current_user)):
     faculty = await db.faculty.find_one({'user_id': user['id']}, {'_id': 0})
     if not faculty:
         raise HTTPException(status_code=404, detail='Faculty profile not found')
+        
     dept = await db.departments.find_one({'id': faculty.get('department_id', '')}, {'_id': 0})
     subjects = await db.subjects.find({'department_id': faculty.get('department_id', '')}, {'_id': 0}).to_list(50)
     students_count = await db.students.count_documents({'department_id': faculty.get('department_id', '')})
     notices = await db.notices.find({}, {'_id': 0}).sort('created_at', -1).limit(5).to_list(5)
+    
     return {
-        'faculty': faculty, 'department': dept,
-        'subjects': subjects, 'students_count': students_count, 'notices': notices
+        'faculty': faculty, 'department': dept, 'subjects': subjects,
+        'students_count': students_count, 'notices': notices
     }
 
 # ─── SEED DATA ──────────────────────────────────────────────────────────────────
@@ -618,65 +652,69 @@ async def seed_data():
     existing = await db.users.count_documents({})
     if existing > 0:
         return {'message': 'Data already seeded', 'seeded': False}
-
+        
     dept_cs_id, dept_ec_id, dept_me_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
     departments = [
         {'id': dept_cs_id, 'name': 'Computer Science', 'code': 'CS', 'head_faculty_id': '', 'description': 'Department of Computer Science and Engineering', 'created_at': datetime.now(timezone.utc).isoformat()},
         {'id': dept_ec_id, 'name': 'Electronics & Communication', 'code': 'EC', 'head_faculty_id': '', 'description': 'Department of Electronics and Communication Engineering', 'created_at': datetime.now(timezone.utc).isoformat()},
-        {'id': dept_me_id, 'name': 'Mechanical Engineering', 'code': 'ME', 'head_faculty_id': '', 'description': 'Department of Mechanical Engineering', 'created_at': datetime.now(timezone.utc).isoformat()},
+        {'id': dept_me_id, 'name': 'Mechanical Engineering', 'code': 'ME', 'head_faculty_id': '', 'description': 'Department of Mechanical Engineering', 'created_at': datetime.now(timezone.utc).isoformat()}
     ]
-
+    
     subj_ids = [str(uuid.uuid4()) for _ in range(5)]
     subjects = [
         {'id': subj_ids[0], 'name': 'Data Structures & Algorithms', 'code': 'CS301', 'department_id': dept_cs_id, 'semester': 3, 'credits': 4, 'created_at': datetime.now(timezone.utc).isoformat()},
         {'id': subj_ids[1], 'name': 'Database Management Systems', 'code': 'CS302', 'department_id': dept_cs_id, 'semester': 3, 'credits': 4, 'created_at': datetime.now(timezone.utc).isoformat()},
         {'id': subj_ids[2], 'name': 'Computer Networks', 'code': 'CS501', 'department_id': dept_cs_id, 'semester': 5, 'credits': 3, 'created_at': datetime.now(timezone.utc).isoformat()},
         {'id': subj_ids[3], 'name': 'Digital Electronics', 'code': 'EC301', 'department_id': dept_ec_id, 'semester': 3, 'credits': 4, 'created_at': datetime.now(timezone.utc).isoformat()},
-        {'id': subj_ids[4], 'name': 'Thermodynamics', 'code': 'ME301', 'department_id': dept_me_id, 'semester': 3, 'credits': 3, 'created_at': datetime.now(timezone.utc).isoformat()},
+        {'id': subj_ids[4], 'name': 'Thermodynamics', 'code': 'ME301', 'department_id': dept_me_id, 'semester': 3, 'credits': 3, 'created_at': datetime.now(timezone.utc).isoformat()}
     ]
-
+    
     admin_id = str(uuid.uuid4())
-    users = [{'id': admin_id, 'email': 'admin@smartcampus.edu', 'password_hash': hash_pw('admin123'), 'name': 'Campus Administrator', 'role': 'admin'}]
-
-    faculty_data = [
-        ('Dr. Rajesh Kumar', 'FAC001', dept_cs_id, 'Professor', 'rajesh.kumar@smartcampus.edu', '+91 9876543210'),
-        ('Dr. Priya Sharma', 'FAC002', dept_cs_id, 'Associate Professor', 'priya.sharma@smartcampus.edu', '+91 9876543211'),
-        ('Dr. Amit Patel', 'FAC003', dept_ec_id, 'Professor', 'amit.patel@smartcampus.edu', '+91 9876543212'),
-        ('Dr. Neha Singh', 'FAC004', dept_me_id, 'Assistant Professor', 'neha.singh@smartcampus.edu', '+91 9876543213'),
-        ('Dr. Sanjay Verma', 'FAC005', dept_cs_id, 'Assistant Professor', 'sanjay.verma@smartcampus.edu', '+91 9876543214'),
+    users = [
+        {'id': admin_id, 'email': 'admin@smartcampus.edu', 'password_hash': hash_pw('admin123'), 'name': 'Campus Administrator', 'role': 'admin'}
     ]
+    
+    faculty_data = [
+        ("Dr. Rajesh Kumar", "FAC001", dept_cs_id, "Professor", "rajesh.kumar@smartcampus.edu", "+91 9876543210"),
+        ("Dr. Priya Sharma", "FAC002", dept_cs_id, "Associate Professor", "priya.sharma@smartcampus.edu", "+91 9876543211"),
+        ("Dr. Amit Patel", "FAC003", dept_ec_id, "Professor", "amit.patel@smartcampus.edu", "+91 9876543212"),
+        ("Dr. Neha Singh", "FAC004", dept_me_id, "Assistant Professor", "neha.singh@smartcampus.edu", "+91 9876543213"),
+        ("Dr. Sanjay Verma", "FAC005", dept_cs_id, "Assistant Professor", "sanjay.verma@smartcampus.edu", "+91 9876543214")
+    ]
+    
     faculty_records = []
     for name, fid, dept, desig, email, phone in faculty_data:
         uid, fac_id = str(uuid.uuid4()), str(uuid.uuid4())
         users.append({'id': uid, 'email': email, 'password_hash': hash_pw('faculty123'), 'name': name, 'role': 'faculty'})
         faculty_records.append({'id': fac_id, 'user_id': uid, 'name': name, 'faculty_id_number': fid, 'department_id': dept, 'designation': desig, 'email': email, 'phone': phone, 'created_at': datetime.now(timezone.utc).isoformat()})
-
+        
     departments[0]['head_faculty_id'] = faculty_records[0]['id']
     departments[1]['head_faculty_id'] = faculty_records[2]['id']
     departments[2]['head_faculty_id'] = faculty_records[3]['id']
-
+    
     student_data = [
-        ('Aarav Mehta', 'CS2023001', 'EN2023001', 'aarav.mehta@smartcampus.edu', 'Male', dept_cs_id, 3, 'A'),
-        ('Priya Gupta', 'CS2023002', 'EN2023002', 'priya.gupta@smartcampus.edu', 'Female', dept_cs_id, 3, 'A'),
-        ('Rohan Singh', 'CS2023003', 'EN2023003', 'rohan.singh@smartcampus.edu', 'Male', dept_cs_id, 3, 'A'),
-        ('Sneha Patel', 'CS2023004', 'EN2023004', 'sneha.patel@smartcampus.edu', 'Female', dept_cs_id, 3, 'B'),
-        ('Vivek Kumar', 'CS2023005', 'EN2023005', 'vivek.kumar@smartcampus.edu', 'Male', dept_cs_id, 3, 'B'),
-        ('Ananya Reddy', 'CS2022001', 'EN2022001', 'ananya.reddy@smartcampus.edu', 'Female', dept_cs_id, 5, 'A'),
-        ('Karan Joshi', 'CS2022002', 'EN2022002', 'karan.joshi@smartcampus.edu', 'Male', dept_cs_id, 5, 'A'),
-        ('Ishita Sharma', 'CS2022003', 'EN2022003', 'ishita.sharma@smartcampus.edu', 'Female', dept_cs_id, 5, 'A'),
-        ('Aditya Verma', 'EC2023001', 'EN2023006', 'aditya.verma@smartcampus.edu', 'Male', dept_ec_id, 3, 'A'),
-        ('Meera Iyer', 'EC2023002', 'EN2023007', 'meera.iyer@smartcampus.edu', 'Female', dept_ec_id, 3, 'A'),
-        ('Rahul Nair', 'EC2023003', 'EN2023008', 'rahul.nair@smartcampus.edu', 'Male', dept_ec_id, 3, 'B'),
-        ('Pooja Desai', 'EC2023004', 'EN2023009', 'pooja.desai@smartcampus.edu', 'Female', dept_ec_id, 3, 'B'),
-        ('Arjun Malhotra', 'EC2022001', 'EN2022004', 'arjun.malhotra@smartcampus.edu', 'Male', dept_ec_id, 5, 'A'),
-        ('Divya Saxena', 'EC2022002', 'EN2022005', 'divya.saxena@smartcampus.edu', 'Female', dept_ec_id, 5, 'A'),
-        ('Nikhil Chauhan', 'ME2023001', 'EN2023010', 'nikhil.chauhan@smartcampus.edu', 'Male', dept_me_id, 3, 'A'),
-        ('Riya Agarwal', 'ME2023002', 'EN2023011', 'riya.agarwal@smartcampus.edu', 'Female', dept_me_id, 3, 'A'),
-        ('Siddharth Rao', 'ME2023003', 'EN2023012', 'siddharth.rao@smartcampus.edu', 'Male', dept_me_id, 3, 'B'),
-        ('Kavya Jain', 'ME2022001', 'EN2022006', 'kavya.jain@smartcampus.edu', 'Female', dept_me_id, 5, 'A'),
-        ('Manish Tiwari', 'ME2022002', 'EN2022007', 'manish.tiwari@smartcampus.edu', 'Male', dept_me_id, 5, 'A'),
-        ('Tanya Bhatia', 'ME2022003', 'EN2022008', 'tanya.bhatia@smartcampus.edu', 'Female', dept_me_id, 5, 'B'),
+        ("Aarav Mehta", "CS2023001", "EN2023001", "aarav.mehta@smartcampus.edu", "Male", dept_cs_id, 3, "A"),
+        ("Priya Gupta", "CS2023002", "EN2023002", "priya.gupta@smartcampus.edu", "Female", dept_cs_id, 3, "A"),
+        ("Rohan Singh", "CS2023003", "EN2023003", "rohan.singh@smartcampus.edu", "Male", dept_cs_id, 3, "A"),
+        ("Sneha Patel", "CS2023004", "EN2023004", "sneha.patel@smartcampus.edu", "Female", dept_cs_id, 3, "B"),
+        ("Vivek Kumar", "CS2023005", "EN2023005", "vivek.kumar@smartcampus.edu", "Male", dept_cs_id, 3, "B"),
+        ("Ananya Reddy", "CS2022001", "EN2022001", "ananya.reddy@smartcampus.edu", "Female", dept_cs_id, 5, "A"),
+        ("Karan Joshi", "CS2022002", "EN2022002", "karan.joshi@smartcampus.edu", "Male", dept_cs_id, 5, "A"),
+        ("Ishita Sharma", "CS2022003", "EN2022003", "ishita.sharma@smartcampus.edu", "Female", dept_cs_id, 5, "A"),
+        ("Aditya Verma", "EC2023001", "EN2023006", "aditya.verma@smartcampus.edu", "Male", dept_ec_id, 3, "A"),
+        ("Meera Iyer", "EC2023002", "EN2023007", "meera.iyer@smartcampus.edu", "Female", dept_ec_id, 3, "A"),
+        ("Rahul Nair", "EC2023003", "EN2023008", "rahul.nair@smartcampus.edu", "Male", dept_ec_id, 3, "B"),
+        ("Pooja Desai", "EC2023004", "EN2023009", "pooja.desai@smartcampus.edu", "Female", dept_ec_id, 3, "B"),
+        ("Arjun Malhotra", "EC2022001", "EN2022004", "arjun.malhotra@smartcampus.edu", "Male", dept_ec_id, 5, "A"),
+        ("Divya Saxena", "EC2022002", "EN2022005", "divya.saxena@smartcampus.edu", "Female", dept_ec_id, 5, "A"),
+        ("Nikhil Chauhan", "ME2023001", "EN2023010", "nikhil.chauhan@smartcampus.edu", "Male", dept_me_id, 3, "A"),
+        ("Riya Agarwal", "ME2023002", "EN2023011", "riya.agarwal@smartcampus.edu", "Female", dept_me_id, 3, "A"),
+        ("Siddharth Rao", "ME2023003", "EN2023012", "siddharth.rao@smartcampus.edu", "Male", dept_me_id, 3, "B"),
+        ("Kavya Jain", "ME2022001", "EN2022006", "kavya.jain@smartcampus.edu", "Female", dept_me_id, 5, "A"),
+        ("Manish Tiwari", "ME2022002", "EN2022007", "manish.tiwari@smartcampus.edu", "Male", dept_me_id, 5, "A"),
+        ("Tanya Bhatia", "ME2022003", "EN2022008", "tanya.bhatia@smartcampus.edu", "Female", dept_me_id, 5, "B")
     ]
+    
     student_records = []
     for name, roll, enroll, email, gender, dept, sem, sec in student_data:
         uid, sid = str(uuid.uuid4()), str(uuid.uuid4())
@@ -690,67 +728,61 @@ async def seed_data():
             'admission_date': '2023-08-01' if sem <= 3 else '2022-08-01',
             'status': 'active', 'created_at': datetime.now(timezone.utc).isoformat()
         })
-
+        
     attendance_records = []
     for student in student_records:
         student_subjects = [s for s in subjects if s['department_id'] == student['department_id'] and s['semester'] == student['semester']]
         for subj in student_subjects:
             for day_offset in range(14):
                 day_dt = datetime.now(timezone.utc) - timedelta(days=day_offset)
-                if day_dt.weekday() >= 5:
-                    continue
+                if day_dt.weekday() >= 5: continue
                 attendance_records.append({
-                    'id': str(uuid.uuid4()), 'student_id': student['id'],
-                    'subject_id': subj['id'], 'date': day_dt.strftime('%Y-%m-%d'),
+                    'id': str(uuid.uuid4()), 'student_id': student['id'], 'subject_id': subj['id'],
+                    'date': day_dt.strftime('%Y-%m-%d'),
                     'status': random.choices(['present', 'absent', 'late'], weights=[80, 10, 10])[0],
-                    'marked_by': faculty_records[0]['id'],
-                    'created_at': datetime.now(timezone.utc).isoformat()
+                    'marked_by': faculty_records[0]['id'], 'created_at': datetime.now(timezone.utc).isoformat()
                 })
-
+                
     marks_records = []
     for student in student_records:
         student_subjects = [s for s in subjects if s['department_id'] == student['department_id'] and s['semester'] == student['semester']]
         for subj in student_subjects:
-            internal = round(random.uniform(15, 30), 1)
-            practical = round(random.uniform(10, 20), 1)
-            final = round(random.uniform(20, 50), 1)
+            internal, practical, final = round(random.uniform(15, 30), 1), round(random.uniform(10, 20), 1), round(random.uniform(20, 50), 1)
             total = round(internal + practical + final, 1)
             marks_records.append({
                 'id': str(uuid.uuid4()), 'student_id': student['id'], 'subject_id': subj['id'],
                 'internal_marks': internal, 'practical_marks': practical, 'final_marks': final,
-                'total': total, 'percentage': round(total, 1),
-                'grade': calc_grade(total), 'result_status': 'Pass' if total >= 40 else 'Fail',
+                'total': total, 'percentage': round(total, 1), 'grade': calc_grade(total),
+                'result_status': 'Pass' if total >= 40 else 'Fail',
                 'entered_by': faculty_records[0]['id'], 'created_at': datetime.now(timezone.utc).isoformat()
             })
-
+            
     notices = [
         {'id': str(uuid.uuid4()), 'title': 'Mid-Semester Examination Schedule', 'description': 'Mid-semester examinations for all departments commence from March 15, 2025. Collect hall tickets from the examination cell by March 10.', 'priority': 'high', 'audience': 'all', 'posted_by': 'Campus Administrator', 'posted_by_id': admin_id, 'date': '2025-03-01', 'created_at': datetime.now(timezone.utc).isoformat()},
         {'id': str(uuid.uuid4()), 'title': 'Annual Sports Day Registration', 'description': 'Register for Annual Sports Day events. Last date: March 20. Contact your class representative for details.', 'priority': 'medium', 'audience': 'students', 'posted_by': 'Dr. Rajesh Kumar', 'posted_by_id': faculty_records[0]['id'], 'date': '2025-02-28', 'created_at': (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()},
         {'id': str(uuid.uuid4()), 'title': 'Faculty Development Program', 'description': 'Two-day FDP on "AI in Education" on March 25-26. All faculty members confirm attendance.', 'priority': 'medium', 'audience': 'faculty', 'posted_by': 'Campus Administrator', 'posted_by_id': admin_id, 'date': '2025-02-25', 'created_at': (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()},
         {'id': str(uuid.uuid4()), 'title': 'Library Hours Extended', 'description': 'Library open till 9 PM during examination period. Reading room and computer lab available for exam preparation.', 'priority': 'low', 'audience': 'all', 'posted_by': 'Campus Administrator', 'posted_by_id': admin_id, 'date': '2025-02-20', 'created_at': (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()},
-        {'id': str(uuid.uuid4()), 'title': 'Campus Placement Drive - TCS', 'description': 'TCS placement drive on April 5, 2025. Eligible students (6th sem+, 60%+ aggregate) register on placement portal by March 28.', 'priority': 'high', 'audience': 'students', 'posted_by': 'Dr. Priya Sharma', 'posted_by_id': faculty_records[1]['id'], 'date': '2025-02-18', 'created_at': (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()},
+        {'id': str(uuid.uuid4()), 'title': 'Campus Placement Drive - TCS', 'description': 'TCS placement drive on April 5, 2025. Eligible students (6th sem+, 60%+ aggregate) register on placement portal by March 28.', 'priority': 'high', 'audience': 'students', 'posted_by': 'Dr. Priya Sharma', 'posted_by_id': faculty_records[1]['id'], 'date': '2025-02-18', 'created_at': (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()}
     ]
-
+    
     complaints = [
         {'id': str(uuid.uuid4()), 'student_id': student_records[0]['id'], 'student_name': 'Aarav Mehta', 'title': 'Wi-Fi Issues in Lab 3', 'description': 'Wi-Fi in Computer Lab 3 has been intermittent for a week, affecting practical sessions.', 'status': 'in_progress', 'remarks': 'IT team investigating router replacement.', 'created_at': (datetime.now(timezone.utc) - timedelta(days=5)).isoformat(), 'updated_at': (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()},
         {'id': str(uuid.uuid4()), 'student_id': student_records[3]['id'], 'student_name': 'Sneha Patel', 'title': 'Broken Projector in Room 201', 'description': 'Projector in classroom 201 display is flickering during lectures.', 'status': 'pending', 'remarks': '', 'created_at': (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(), 'updated_at': (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()},
         {'id': str(uuid.uuid4()), 'student_id': student_records[8]['id'], 'student_name': 'Aditya Verma', 'title': 'Request for Extra Lab Hours', 'description': 'Need additional lab hours for Digital Electronics project. Current 2-hour slots insufficient.', 'status': 'resolved', 'remarks': 'Extra lab hours approved for Saturday mornings.', 'created_at': (datetime.now(timezone.utc) - timedelta(days=15)).isoformat(), 'updated_at': (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()},
         {'id': str(uuid.uuid4()), 'student_id': student_records[14]['id'], 'student_name': 'Nikhil Chauhan', 'title': 'Water Cooler Not Working', 'description': 'Water cooler near ME department not cooling properly. Needs repair.', 'status': 'pending', 'remarks': '', 'created_at': (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), 'updated_at': (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()},
-        {'id': str(uuid.uuid4()), 'student_id': student_records[5]['id'], 'student_name': 'Ananya Reddy', 'title': 'Attendance Discrepancy', 'description': 'Computer Networks attendance shows 2 incorrect absences. Have evidence of attendance.', 'status': 'in_progress', 'remarks': 'Forwarded to subject teacher for verification.', 'created_at': (datetime.now(timezone.utc) - timedelta(days=7)).isoformat(), 'updated_at': (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()},
+        {'id': str(uuid.uuid4()), 'student_id': student_records[5]['id'], 'student_name': 'Ananya Reddy', 'title': 'Attendance Discrepancy', 'description': 'Computer Networks attendance shows 2 incorrect absences. Have evidence of attendance.', 'status': 'in_progress', 'remarks': 'Forwarded to subject teacher for verification.', 'created_at': (datetime.now(timezone.utc) - timedelta(days=7)).isoformat(), 'updated_at': (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()}
     ]
-
+    
     await db.users.insert_many(users)
     await db.departments.insert_many(departments)
     await db.subjects.insert_many(subjects)
     await db.faculty.insert_many(faculty_records)
     await db.students.insert_many(student_records)
-    if attendance_records:
-        await db.attendance.insert_many(attendance_records)
-    if marks_records:
-        await db.marks.insert_many(marks_records)
+    if attendance_records: await db.attendance.insert_many(attendance_records)
+    if marks_records: await db.marks.insert_many(marks_records)
     await db.notices.insert_many(notices)
     await db.complaints.insert_many(complaints)
-
+    
     logger.info(f"Seeded: {len(users)} users, {len(student_records)} students, {len(faculty_records)} faculty, {len(attendance_records)} attendance, {len(marks_records)} marks")
     return {'message': 'Demo data seeded successfully', 'seeded': True}
 
@@ -765,16 +797,10 @@ async def startup():
 
 app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Note: CORS Middleware humne shuru mein move kar diya hai taaki routing se pehle load ho.
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
+async def shutdown():
     client.close()

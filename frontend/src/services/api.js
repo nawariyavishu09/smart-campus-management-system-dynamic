@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // Yahan humne process.env hata kar direct backend ka link daal diya hai
-  baseURL: 'http://127.0.0.1:8000/api',
+  baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`,
 });
 
 api.interceptors.request.use((config) => {

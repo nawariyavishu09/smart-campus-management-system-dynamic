@@ -45,7 +45,11 @@ export default function LoginPage() {
       }
       toast.success(`Welcome, ${user.name}!`);
       navigate('/dashboard');
-    } catch (err) { toast.error(err.response?.data?.detail || 'Invalid credentials'); }
+    } catch (err) {
+      console.error('Login error:', err);
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Invalid credentials';
+      toast.error(msg);
+    }
     finally { setLoading(false); }
   };
 
