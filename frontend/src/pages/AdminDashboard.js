@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, GraduationCap, Building2, CalendarCheck, MessageSquare, Megaphone, TrendingUp, ArrowUpRight, BarChart3, Zap } from "lucide-react";
+import { Users, GraduationCap, Building2, CalendarCheck, MessageSquare, Megaphone, TrendingUp, ArrowUpRight, BarChart3, Zap, Headphones, CheckCircle2, Loader2, Send, X } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 
 const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#a855f7", "#06b6d4"];
@@ -32,6 +32,11 @@ const CustomTooltip = ({ active, payload, label, unit }) => {
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [supportMsgs, setSupportMsgs] = useState([]);
+  const [supportLoading, setSupportLoading] = useState(true);
+  const [replyTarget, setReplyTarget] = useState(null); // { id, sender_name }
+  const [replyText, setReplyText] = useState("");
+  const [replySending, setReplySending] = useState(false);
   const navigate = useNavigate();
 
   const hour = new Date().getHours();
@@ -43,7 +48,32 @@ export default function AdminDashboard() {
       .then((res) => setStats(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
+    api
+      .get("/support-messages")
+      .then((res) => setSupportMsgs(res.data.messages || []))
+      .catch(() => {})
+      .finally(() => setSupportLoading(false));
   }, []);
+
+  const loadSupport = () => {
+    setSupportLoading(true);
+    api.get("/support-messages")
+      .then((res) => setSupportMsgs(res.data.messages || []))
+      .catch(() => {})
+      .finally(() => setSupportLoading(false));
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() || !replyTarget) return;
+    setReplySending(true);
+    try {
+      await api.patch(`/support-messages/${replyTarget.id}`, { status: "resolved", admin_reply: replyText.trim() });
+      setReplyTarget(null);
+      setReplyText("");
+      loadSupport();
+    } catch {}
+    setReplySending(false);
+  };
 
   if (loading) {
     return (
@@ -260,6 +290,123 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Support Inbox ── */}
+      <div className="pro-card bg-card overflow-hidden" data-testid="support-inbox">
+        <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+              <Headphones className="w-3.5 h-3.5 text-violet-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">Support Inbox</h3>
+              <p className="text-[11px] text-muted-foreground">Messages from faculty &amp; students</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {supportMsgs.filter((m) => m.status === "open").length > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                {supportMsgs.filter((m) => m.status === "open").length} Open
+              </span>
+            )}
+            <button onClick={loadSupport} className="text-xs text-primary font-semibold hover:underline">Refresh</button>
+          </div>
+        </div>
+        <div className="divide-y divide-border/40 max-h-96 overflow-y-auto">
+          {supportLoading ? (
+            <div className="py-10 text-center">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground/30 mx-auto" />
+            </div>
+          ) : supportMsgs.length === 0 ? (
+            <div className="py-12 text-center">
+              <Headphones className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">No support messages yet</p>
+            </div>
+          ) : (
+            supportMsgs.map((m) => (
+              <div key={m.id} className="flex items-start gap-4 px-6 py-4 hover:bg-muted/30 transition-colors" data-testid={`support-msg-${m.id}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0 bg-gradient-to-br ${m.sender_role === "faculty" ? "from-emerald-500 to-teal-600" : "from-indigo-500 to-violet-600"}`}>
+                  {m.sender_name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?"}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold">{m.sender_name}</p>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${m.sender_role === "faculty" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"}`}>
+                      {m.sender_role}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/70">{m.sender_email}</span>
+                  </div>
+                  <p className="text-sm text-foreground/80 leading-snug">{m.message}</p>
+                  {m.admin_reply && (
+                    <div className="pl-3 border-l-2 border-emerald-400 mt-1">
+                      <p className="text-[10px] text-muted-foreground font-semibold mb-0.5 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Your reply
+                      </p>
+                      <p className="text-xs text-foreground/70">{m.admin_reply}</p>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/50">
+                    {new Date(m.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+                <div className="shrink-0 flex flex-col items-end gap-2">
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${m.status === "resolved" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>
+                    {m.status === "resolved" ? "Resolved" : "Open"}
+                  </span>
+                  {m.status === "open" && (
+                    <button
+                      onClick={() => { setReplyTarget(m); setReplyText(""); }}
+                      className="text-[11px] font-bold text-violet-600 hover:text-violet-700 hover:underline transition-colors"
+                      data-testid={`reply-btn-${m.id}`}
+                    >
+                      Reply &amp; Resolve
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Reply Modal */}
+      {replyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" data-testid="reply-modal">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-border/50 w-full max-w-md mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+              <div>
+                <p className="font-black text-sm">Reply to {replyTarget.sender_name}</p>
+                <p className="text-[11px] text-muted-foreground capitalize">{replyTarget.sender_role} · {replyTarget.sender_email}</p>
+              </div>
+              <button onClick={() => setReplyTarget(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-border/50 text-sm text-foreground/80">
+                {replyTarget.message}
+              </div>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply..."
+                rows={4}
+                data-testid="reply-textarea"
+                className="w-full rounded-xl border border-border/60 bg-background text-sm p-3 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 transition-all"
+              />
+              <button
+                onClick={handleReply}
+                disabled={replySending || !replyText.trim()}
+                data-testid="reply-submit-btn"
+                className="w-full h-10 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all"
+              >
+                {replySending ? <><Loader2 className="w-4 h-4 animate-spin" />Sending...</> : <><Send className="w-4 h-4" />Send Reply &amp; Resolve</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

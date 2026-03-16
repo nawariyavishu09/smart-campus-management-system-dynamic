@@ -140,6 +140,13 @@ class ComplaintUpdate(BaseModel):
     status: str
     remarks: str = ""
 
+class SupportMessageCreate(BaseModel):
+    message: str
+
+class SupportMessageReply(BaseModel):
+    status: str = "resolved"
+    admin_reply: str = ""
+
 def calc_grade(pct):
     if pct >= 90: return 'A+'
     if pct >= 80: return 'A'
@@ -932,6 +939,49 @@ async def seed_data():
     
     logger.info(f"Seeded: {len(users)} users, {len(student_records)} students, {len(faculty_records)} faculty, {len(attendance_records)} attendance, {len(marks_records)} marks")
     return {'message': 'Demo data seeded successfully', 'seeded': True}
+
+# ─── Support Messages ────────────────────────────────────────────────────────────
+
+@api_router.post("/support-messages")
+async def create_support_message(body: SupportMessageCreate, user=Depends(get_current_user)):
+    if user.get('role') == 'admin':
+        raise HTTPException(status_code=403, detail='Admins cannot send support messages')
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail='Message cannot be empty')
+    doc = {
+        'id': str(uuid.uuid4()),
+        'sender_id': user['id'],
+        'sender_name': user.get('name', ''),
+        'sender_email': user.get('email', ''),
+        'sender_role': user.get('role', ''),
+        'message': body.message.strip(),
+        'status': 'open',
+        'admin_reply': '',
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+    await db.support_messages.insert_one(doc)
+    return {'success': True, 'id': doc['id']}
+
+@api_router.get("/support-messages")
+async def get_support_messages(user=Depends(get_current_user)):
+    if user.get('role') == 'admin':
+        msgs = await db.support_messages.find({}, {'_id': 0}).sort('created_at', -1).limit(50).to_list(50)
+    else:
+        msgs = await db.support_messages.find({'sender_id': user['id']}, {'_id': 0}).sort('created_at', -1).to_list(20)
+    return {'messages': msgs}
+
+@api_router.patch("/support-messages/{msg_id}")
+async def update_support_message(msg_id: str, body: SupportMessageReply, user=Depends(get_current_user)):
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail='Only admin can update support messages')
+    result = await db.support_messages.update_one(
+        {'id': msg_id},
+        {'$set': {'status': body.status, 'admin_reply': body.admin_reply, 'updated_at': datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail='Message not found')
+    return {'success': True}
 
 # ─── APP CONFIG ─────────────────────────────────────────────────────────────────
 
