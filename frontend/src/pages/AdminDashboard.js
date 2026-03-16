@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Badge } from "@/components/ui/badge";
@@ -370,10 +371,14 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Reply Modal */}
-      {replyTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" data-testid="reply-modal">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-border/50 w-full max-w-md mx-4 overflow-hidden">
+      {/* Reply Modal — rendered via Portal so it's always viewport-centered */}
+      {replyTarget && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          data-testid="reply-modal"
+          onClick={(e) => { if (e.target === e.currentTarget) setReplyTarget(null); }}
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-border/50 w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
               <div>
                 <p className="font-black text-sm">Reply to {replyTarget.sender_name}</p>
@@ -392,6 +397,7 @@ export default function AdminDashboard() {
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder="Type your reply..."
                 rows={4}
+                autoFocus
                 data-testid="reply-textarea"
                 className="w-full rounded-xl border border-border/60 bg-background text-sm p-3 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 transition-all"
               />
@@ -405,7 +411,8 @@ export default function AdminDashboard() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
