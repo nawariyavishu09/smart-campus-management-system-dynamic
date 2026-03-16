@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,9 @@ import { toast } from 'sonner';
 
 export default function NoticeBoard() {
   const { user } = useAuth();
+  const location = useLocation();
+  const highlightRef = useRef(null);
+  const [highlightId, setHighlightId] = useState(null);
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -26,6 +30,19 @@ export default function NoticeBoard() {
     api.get('/notices').then(r => setNotices(r.data.notices)).catch(() => toast.error('Failed to load')).finally(() => setLoading(false));
   };
   useEffect(() => { fetchNotices(); }, []);
+
+  // Auto-highlight & scroll when navigated from search results
+  useEffect(() => {
+    if (location.state?.searchItemId && notices.length > 0) {
+      setHighlightId(location.state.searchItemId);
+      window.history.replaceState({}, document.title);
+      setTimeout(() => {
+        if (highlightRef.current) {
+          highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [location.state?.searchItemId, notices]);
 
   const handlePost = async () => {
     if (!form.title || !form.description) { toast.error('Title and description required'); return; }
@@ -141,7 +158,7 @@ export default function NoticeBoard() {
         ) : (
           <div className="space-y-4">
           {notices.map(n => (
-            <Card key={n.id} className="rounded-xl border-border/50 overflow-hidden hover:shadow-lg transition-all group" data-testid={`notice-card-${n.id}`}>
+            <Card key={n.id} ref={highlightId === n.id ? highlightRef : null} className={`rounded-xl border-border/50 overflow-hidden hover:shadow-lg transition-all group ${highlightId === n.id ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`} data-testid={`notice-card-${n.id}`}>
               <div className={`h-1 ${n.priority === 'high' ? 'bg-rose-600' : n.priority === 'medium' ? 'bg-amber-600' : 'bg-emerald-600'}`}></div>
               <CardContent className="p-6">
                 <div className="flex items-start justify-between gap-4">

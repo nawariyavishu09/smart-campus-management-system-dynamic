@@ -18,6 +18,7 @@ const emptyForm = { name: '', faculty_id_number: '', department_id: '', designat
 
 export default function FacultyManagement() {
   const { user } = useAuth();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [faculty, setFaculty] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -42,6 +43,17 @@ export default function FacultyManagement() {
 
   useEffect(() => { api.get('/departments').then(r => setDepartments(r.data.departments)).catch(() => {}); }, []);
   useEffect(() => { fetchFaculty(); }, [fetchFaculty]);
+
+  // Auto-open detail when navigated from search results
+  useEffect(() => {
+    if (location.state?.searchItemId && faculty.length > 0) {
+      const found = faculty.find(f => f.id === location.state.searchItemId);
+      if (found) {
+        openEdit(found);
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state?.searchItemId, faculty]);
 
   const deptName = (id) => departments.find(d => d.id === id)?.name || '-';
   const isAdmin = user?.role === 'admin';

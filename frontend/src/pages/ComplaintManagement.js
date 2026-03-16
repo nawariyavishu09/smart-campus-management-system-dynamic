@@ -39,15 +39,17 @@ export default function ComplaintManagement() {
 
   // Auto-open detail modal when search result clicked
   useEffect(() => {
-    if (location.state?.searchItemId && complaints.length > 0) {
+    if (location.state?.searchItemId && !loading && complaints.length > 0) {
+      console.log('Auto-opening complaint:', location.state.searchItemId);
       const complaint = complaints.find(c => c.id === location.state.searchItemId);
+      console.log('Found complaint:', complaint);
       if (complaint) {
         openUpdate(complaint);
         // Clear the state to prevent reopening on page refresh
         window.history.replaceState({}, document.title);
       }
     }
-  }, [location.state?.searchItemId, complaints]);
+  }, [location.state?.searchItemId, complaints, loading]);
 
   const handleSubmit = async () => {
     if (!form.title || !form.description) { toast.error('Title and description required'); return; }

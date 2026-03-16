@@ -290,7 +290,7 @@ export default function DashboardLayout() {
       {/* Main Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6 shrink-0" data-testid="topbar">
+        <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6 shrink-0 z-20" data-testid="topbar">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>

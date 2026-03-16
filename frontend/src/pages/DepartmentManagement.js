@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ const emptyForm = { name: '', code: '', head_faculty_id: '', description: '' };
 
 export default function DepartmentManagement() {
   const { user } = useAuth();
+  const location = useLocation();
   const [departments, setDepartments] = useState([]);
   const [faculty, setFaculty] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,17 @@ export default function DepartmentManagement() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Auto-open detail when navigated from search results
+  useEffect(() => {
+    if (location.state?.searchItemId && departments.length > 0) {
+      const found = departments.find(d => d.id === location.state.searchItemId);
+      if (found) {
+        openEdit(found);
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state?.searchItemId, departments]);
 
   const facName = (id) => faculty.find(f => f.id === id)?.name || '-';
 

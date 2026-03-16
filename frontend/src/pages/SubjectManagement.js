@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ const emptyForm = { name: '', code: '', department_id: '', semester: 1, credits:
 
 export default function SubjectManagement() {
   const { user } = useAuth();
+  const location = useLocation();
   const [subjects, setSubjects] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,17 @@ export default function SubjectManagement() {
     } catch {} finally { setLoading(false); }
   };
   useEffect(() => { fetchData(); }, []);
+
+  // Auto-open detail when navigated from search results
+  useEffect(() => {
+    if (location.state?.searchItemId && subjects.length > 0) {
+      const found = subjects.find(s => s.id === location.state.searchItemId);
+      if (found) {
+        openEdit(found);
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state?.searchItemId, subjects]);
 
   const deptName = (id) => departments.find(d => d.id === id)?.name || '-';
 
