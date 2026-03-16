@@ -15,7 +15,9 @@ from datetime import datetime, timezone, timedelta
 import random
 import re
 import smtplib
+import socket
 import ssl
+import requests
 from email.message import EmailMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -34,6 +36,8 @@ SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '').strip()
 SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL', SMTP_USERNAME).strip()
 SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', 'Smart Campus').strip()
 SMTP_USE_TLS = os.environ.get('SMTP_USE_TLS', 'true').strip().lower() not in {'0', 'false', 'no'}
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', SMTP_FROM_EMAIL).strip()
 LOGIN_URL = os.environ.get('LOGIN_URL', os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/') + '/login').strip()
 
 app = FastAPI(title="Smart Campus Management System API")
@@ -116,7 +120,9 @@ async def generate_unique_enrollment_number(department_id: str = "") -> str:
 
 def send_account_credentials_email(recipient_email: str, full_name: str, password: str) -> tuple[bool, str]:
     if not SMTP_HOST or not SMTP_USERNAME or not SMTP_PASSWORD or not SMTP_FROM_EMAIL:
-        logger.warning('SMTP not configured; skipping approval email for %s', recipient_email)
+        logger.warning('SMTP not fully configured for %s; attempting Resend fallback', recipient_email)
+        if RESEND_API_KEY and RESEND_FROM_EMAIL:
+            return send_account_credentials_email_via_resend(recipient_email, full_name, password)
         return False, 'SMTP is not configured'
 
     message = EmailMessage()
@@ -141,21 +147,99 @@ Regards,
 """
     )
 
+    # Render/container environments may resolve SMTP hosts to IPv6 first.
+    # If IPv6 routing is unavailable, retrying with IPv4 avoids "Network is unreachable" failures.
     try:
-        if SMTP_USE_TLS:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
-                server.ehlo()
-                server.starttls(context=ssl.create_default_context())
-                server.ehlo()
-                server.login(SMTP_USERNAME, SMTP_PASSWORD)
-                server.send_message(message)
-        else:
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20, context=ssl.create_default_context()) as server:
-                server.login(SMTP_USERNAME, SMTP_PASSWORD)
-                server.send_message(message)
-        return True, ''
+        addr_infos = socket.getaddrinfo(SMTP_HOST, SMTP_PORT, type=socket.SOCK_STREAM)
     except Exception as exc:
-        logger.exception('Failed to send approval email to %s', recipient_email)
+        logger.exception('Failed to resolve SMTP host %s', SMTP_HOST)
+        return False, f'Failed to resolve SMTP host: {exc}'
+
+    endpoints: list[tuple[str, int, int]] = []
+    seen = set()
+    for family in (socket.AF_INET, socket.AF_INET6):
+        for info in addr_infos:
+            fam, _, _, _, sockaddr = info
+            if fam != family:
+                continue
+            host = sockaddr[0]
+            port = int(sockaddr[1])
+            key = (host, port, fam)
+            if key in seen:
+                continue
+            seen.add(key)
+            endpoints.append((host, port, fam))
+
+    if not endpoints:
+        return False, 'No reachable SMTP endpoints resolved'
+
+    last_error = ''
+    for endpoint_host, endpoint_port, family in endpoints:
+        try:
+            if SMTP_USE_TLS:
+                with smtplib.SMTP(endpoint_host, endpoint_port, timeout=20) as server:
+                    server.ehlo()
+                    server.starttls(context=ssl.create_default_context())
+                    server.ehlo()
+                    server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                    server.send_message(message)
+            else:
+                with smtplib.SMTP_SSL(endpoint_host, endpoint_port, timeout=20, context=ssl.create_default_context()) as server:
+                    server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                    server.send_message(message)
+            return True, ''
+        except Exception as exc:
+            family_name = 'IPv4' if family == socket.AF_INET else 'IPv6'
+            last_error = f'{family_name} {endpoint_host}:{endpoint_port} -> {exc}'
+            logger.warning('SMTP attempt failed for %s via %s', recipient_email, last_error)
+
+    logger.error('All SMTP connection attempts failed for %s: %s', recipient_email, last_error)
+    if RESEND_API_KEY and RESEND_FROM_EMAIL:
+        resend_ok, resend_error = send_account_credentials_email_via_resend(recipient_email, full_name, password)
+        if resend_ok:
+            return True, ''
+        return False, f'SMTP failed: {last_error}; Resend failed: {resend_error}'
+
+    return False, last_error
+
+def send_account_credentials_email_via_resend(recipient_email: str, full_name: str, password: str) -> tuple[bool, str]:
+    if not RESEND_API_KEY or not RESEND_FROM_EMAIL:
+        return False, 'Resend is not configured'
+
+    subject = 'Your Smart Campus Student Account Is Approved'
+    text_body = (
+        f"Hello {full_name},\n\n"
+        "Your student account request has been approved by the Smart Campus administration team.\n\n"
+        "You can now log in using the following credentials:\n\n"
+        f"Email: {recipient_email}\n"
+        f"Password: {password}\n"
+        f"Login URL: {LOGIN_URL}\n\n"
+        "For security, please log in and change your password after your first login.\n\n"
+        f"Regards,\n{SMTP_FROM_NAME}"
+    )
+
+    try:
+        response = requests.post(
+            'https://api.resend.com/emails',
+            headers={
+                'Authorization': f'Bearer {RESEND_API_KEY}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'from': f'{SMTP_FROM_NAME} <{RESEND_FROM_EMAIL}>' if SMTP_FROM_NAME else RESEND_FROM_EMAIL,
+                'to': [recipient_email],
+                'subject': subject,
+                'text': text_body,
+            },
+            timeout=20,
+        )
+
+        if 200 <= response.status_code < 300:
+            return True, ''
+
+        return False, f'Resend HTTP {response.status_code}: {response.text}'
+    except Exception as exc:
+        logger.exception('Failed to send approval email via Resend to %s', recipient_email)
         return False, str(exc)
 
 async def get_student_profile_by_user(user_id: str):
