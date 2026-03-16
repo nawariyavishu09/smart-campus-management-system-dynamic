@@ -135,8 +135,10 @@ function GlobalSearch() {
       const res = await api.get('/search', { params: { q: searchQuery.trim() } });
       setResults(res.data.results || []);
       setOpen(true);
-    } catch {
+    } catch (err) {
+      console.error('Search error:', err);
       setResults([]);
+      setOpen(true);
     } finally {
       setLoading(false);
     }
