@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Users, GraduationCap, Building2, CalendarCheck, MessageSquare, Megaphone, TrendingUp, ArrowUpRight, BarChart3, Zap, Headphones, CheckCircle2, Loader2, Send, X, UserCheck, UserX, Eye, BookOpen, RefreshCw } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
@@ -48,6 +49,7 @@ export default function AdminDashboard() {
   const [actionRemarks, setActionRemarks] = useState("");
   const [actionSending, setActionSending] = useState(false);
   const [syncingProfiles, setSyncingProfiles] = useState(false);
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   const hour = new Date().getHours();
@@ -350,7 +352,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleSyncApprovedProfiles}
+              onClick={() => setSyncDialogOpen(true)}
               disabled={syncingProfiles}
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border bg-background hover:bg-muted text-[11px] font-bold transition-colors disabled:opacity-60"
               title="Repair approved accounts missing student/faculty profiles"
@@ -424,6 +426,45 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      <Dialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
+        <DialogContent className="rounded-2xl" data-testid="sync-approved-profiles-dialog">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-teal-600" />
+              </span>
+              Sync Approved Profiles
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>This will repair previously approved signup requests that are missing student or faculty profile records.</p>
+            <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/40 text-teal-700 dark:text-teal-300 text-xs font-medium">
+              Safe operation: existing student and faculty profiles will be left unchanged. Only missing profiles will be created.
+            </div>
+          </div>
+
+          <DialogFooter className="mt-2">
+            <button
+              onClick={() => setSyncDialogOpen(false)}
+              className="h-10 px-4 rounded-xl border border-border bg-background text-sm font-semibold hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                setSyncDialogOpen(false);
+                await handleSyncApprovedProfiles();
+              }}
+              disabled={syncingProfiles}
+              className="h-10 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+            >
+              {syncingProfiles ? <><Loader2 className="w-4 h-4 animate-spin" />Syncing...</> : <><BookOpen className="w-4 h-4" />Confirm Sync</>}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Support Inbox ── */}
       <div className="pro-card bg-card overflow-hidden" data-testid="support-inbox">
