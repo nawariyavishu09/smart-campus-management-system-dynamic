@@ -28,14 +28,38 @@ export default function SupportWidget() {
 
   const isVisible = user && user.role !== "admin";
   const grad = roleColor[user?.role] || roleColor.student;
+  const seenKey = `support_seen_${user?.id || user?.email}`;
 
-  const loadHistory = async () => {
+  const getSeenIds = () => {
+    try { return JSON.parse(localStorage.getItem(seenKey) || "[]"); } catch { return []; }
+  };
+
+  const markAllSeen = (msgs) => {
+    const repliedIds = msgs
+      .filter((m) => m.status === "resolved" && m.admin_reply)
+      .map((m) => m.id);
+    const existing = getSeenIds();
+    const merged = [...new Set([...existing, ...repliedIds])];
+    localStorage.setItem(seenKey, JSON.stringify(merged));
+    setUnread(0);
+  };
+
+  const calcUnread = (msgs) => {
+    const seen = getSeenIds();
+    return msgs.filter((m) => m.status === "resolved" && m.admin_reply && !seen.includes(m.id)).length;
+  };
+
+  const loadHistory = async (markSeen = false) => {
     setLoadingHistory(true);
     try {
       const res = await api.get("/support-messages");
       const msgs = res.data.messages || [];
       setHistory(msgs);
-      setUnread(msgs.filter((m) => m.status === "resolved" && m.admin_reply).length);
+      if (markSeen) {
+        markAllSeen(msgs);
+      } else {
+        setUnread(calcUnread(msgs));
+      }
     } catch {
       toast.error("Could not load message history");
     } finally {
@@ -44,7 +68,9 @@ export default function SupportWidget() {
   };
 
   useEffect(() => {
-    if (open && tab === "history") loadHistory();
+    // When history tab is open, load and mark all as seen
+    if (open && tab === "history") loadHistory(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, tab]);
 
   // Poll for unread badge count (only if visible)
@@ -54,12 +80,13 @@ export default function SupportWidget() {
       try {
         const res = await api.get("/support-messages");
         const msgs = res.data.messages || [];
-        setUnread(msgs.filter((m) => m.status === "resolved" && m.admin_reply).length);
+        setUnread(calcUnread(msgs));
       } catch {}
     };
     fetchCount();
     const interval = setInterval(fetchCount, 60000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible]);
 
   if (!isVisible) return null;
@@ -75,7 +102,7 @@ export default function SupportWidget() {
       toast.success("Message sent to admin!");
       setMessage("");
       setTab("history");
-      loadHistory();
+      loadHistory(true);
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Failed to send message");
     } finally {
@@ -211,7 +238,7 @@ export default function SupportWidget() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Your Tickets</p>
-                  <button onClick={loadHistory} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <button onClick={() => loadHistory(true)} className="text-muted-foreground hover:text-foreground transition-colors">
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? "animate-spin" : ""}`} />
                   </button>
                 </div>
