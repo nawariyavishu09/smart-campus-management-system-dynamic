@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import random
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -554,13 +555,21 @@ async def update_complaint(complaint_id: str, data: ComplaintUpdate, user=Depend
 
 # ─── GLOBAL SEARCH ROUTE ───────────────────────────────────────────────────────
 
+def make_flexible_regex(query: str) -> str:
+    """WiFi, Wi-Fi, wi fi - sab kuch match karega"""
+    # Remove hyphens and spaces, then insert optional separator between chars
+    clean = re.sub(r'[-\s]+', '', query.strip())
+    if len(clean) < 2:
+        return re.escape(query.strip())
+    return r'[-\s]?'.join(re.escape(c) for c in clean)
+
 @api_router.get("/search")
 async def global_search(q: str = "", user=Depends(get_current_user)):
     if not q or len(q.strip()) < 2:
         return {'results': []}
 
-    query_str = q.strip()
-    regex_filter = {'$regex': query_str, '$options': 'i'}
+    flex_pattern = make_flexible_regex(q)
+    regex_filter = {'$regex': flex_pattern, '$options': 'i'}
     role = user.get('role', 'student')
     results = []
 
