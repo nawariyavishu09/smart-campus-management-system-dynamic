@@ -75,6 +75,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def get_student_profile_by_user(user_id: str):
     return await db.students.find_one({'user_id': user_id}, {'_id': 0})
 
+async def get_faculty_profile_by_user(user_id: str):
+    return await db.faculty.find_one({'user_id': user_id}, {'_id': 0})
+
 # ─── Pydantic Models ───────────────────────────────────────────────────────────
 
 class LoginRequest(BaseModel):
@@ -209,6 +212,12 @@ async def get_students(user=Depends(get_current_user), search: str = "", departm
 
         return {'students': [student], 'total': 1, 'page': 1, 'pages': 1}
 
+    if user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            return {'students': [], 'total': 0, 'page': 1, 'pages': 1}
+        department_id = faculty.get('department_id', '')
+
     query = {}
     if search:
         query['$or'] = [
@@ -233,9 +242,16 @@ async def get_student(student_id: str, user=Depends(get_current_user)):
         if student_id != own_student['id']:
             raise HTTPException(status_code=403, detail='Not authorized to view other students')
 
+    if user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            raise HTTPException(status_code=404, detail='Faculty profile not found')
+
     student = await db.students.find_one({'id': student_id}, {'_id': 0})
     if not student:
         raise HTTPException(status_code=404, detail='Student not found')
+    if user['role'] == 'faculty' and student.get('department_id') != faculty.get('department_id'):
+        raise HTTPException(status_code=403, detail='Not authorized to view other departments students')
     return student
 
 @api_router.post("/students")
@@ -260,6 +276,18 @@ async def create_student(data: StudentCreate, user=Depends(get_current_user)):
 async def update_student(student_id: str, data: StudentCreate, user=Depends(get_current_user)):
     if user['role'] not in ['admin', 'faculty']:
         raise HTTPException(status_code=403, detail='Not authorized')
+
+    if user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            raise HTTPException(status_code=404, detail='Faculty profile not found')
+        existing_student = await db.students.find_one({'id': student_id}, {'_id': 0})
+        if not existing_student:
+            raise HTTPException(status_code=404, detail='Student not found')
+        if existing_student.get('department_id') != faculty.get('department_id'):
+            raise HTTPException(status_code=403, detail='Not authorized to update other departments students')
+        if data.department_id != faculty.get('department_id'):
+            raise HTTPException(status_code=403, detail='Faculty cannot move student to another department')
     
     result = await db.students.update_one({'id': student_id}, {'$set': data.model_dump()})
     if result.matched_count == 0:
@@ -291,6 +319,17 @@ async def delete_student(student_id: str, user=Depends(get_current_user)):
 
 @api_router.get("/faculty")
 async def get_faculty_list(user=Depends(get_current_user), search: str = "", department_id: str = ""):
+    if user['role'] == 'faculty':
+        own_faculty = await get_faculty_profile_by_user(user['id'])
+        if not own_faculty:
+            return {'faculty': []}
+        if search:
+            q = search.lower().strip()
+            haystack = f"{own_faculty.get('name', '')} {own_faculty.get('email', '')} {own_faculty.get('faculty_id_number', '')}".lower()
+            if q not in haystack:
+                return {'faculty': []}
+        return {'faculty': [own_faculty]}
+
     query = {}
     if search:
         query['$or'] = [
@@ -390,6 +429,13 @@ async def get_subjects(user=Depends(get_current_user), department_id: str = "", 
             return {'subjects': []}
         query['department_id'] = student.get('department_id', '')
         query['semester'] = student.get('semester', 0)
+    elif user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            return {'subjects': []}
+        query['department_id'] = faculty.get('department_id', '')
+        if semester > 0:
+            query['semester'] = semester
     else:
         if department_id:
             query['department_id'] = department_id
@@ -430,6 +476,27 @@ async def get_attendance(user=Depends(get_current_user), student_id: str = "", s
     if user['role'] == 'student':
         student = await get_student_profile_by_user(user['id'])
         if student: query['student_id'] = student['id']
+    elif user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            return {'attendance': [], 'total': 0}
+
+        dept_student_docs = await db.students.find({'department_id': faculty.get('department_id', '')}, {'_id': 0, 'id': 1}).to_list(2000)
+        dept_student_ids = [s['id'] for s in dept_student_docs]
+
+        if student_id:
+            if student_id not in dept_student_ids:
+                raise HTTPException(status_code=403, detail='Not authorized to view other departments attendance')
+            query['student_id'] = student_id
+        else:
+            query['student_id'] = {'$in': dept_student_ids} if dept_student_ids else '__none__'
+
+        if subject_id:
+            subject = await db.subjects.find_one({'id': subject_id}, {'_id': 0})
+            if not subject:
+                raise HTTPException(status_code=404, detail='Subject not found')
+            if subject.get('department_id') != faculty.get('department_id'):
+                raise HTTPException(status_code=403, detail='Not authorized to view other departments subjects')
     elif student_id:
         query['student_id'] = student_id
         
@@ -444,6 +511,24 @@ async def get_attendance(user=Depends(get_current_user), student_id: str = "", s
 async def bulk_attendance(data: AttendanceBulkCreate, user=Depends(get_current_user)):
     if user['role'] not in ['admin', 'faculty']:
         raise HTTPException(status_code=403, detail='Not authorized')
+
+    if user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            raise HTTPException(status_code=404, detail='Faculty profile not found')
+
+        subject = await db.subjects.find_one({'id': data.subject_id}, {'_id': 0})
+        if not subject:
+            raise HTTPException(status_code=404, detail='Subject not found')
+        if subject.get('department_id') != faculty.get('department_id'):
+            raise HTTPException(status_code=403, detail='Not authorized for this subject')
+
+        student_ids = [r.get('student_id') for r in data.records]
+        unique_ids = list({sid for sid in student_ids if sid})
+        if unique_ids:
+            allowed_count = await db.students.count_documents({'id': {'$in': unique_ids}, 'department_id': faculty.get('department_id', '')})
+            if allowed_count != len(unique_ids):
+                raise HTTPException(status_code=403, detail='Not authorized to mark other departments students')
         
     records = []
     for r in data.records:
@@ -468,6 +553,15 @@ async def attendance_summary(student_id: str, user=Depends(get_current_user)):
             raise HTTPException(status_code=404, detail='Student profile not found')
         if student_id != own_student['id']:
             raise HTTPException(status_code=403, detail='Not authorized to view other students attendance')
+    elif user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            raise HTTPException(status_code=404, detail='Faculty profile not found')
+        target_student = await db.students.find_one({'id': student_id}, {'_id': 0})
+        if not target_student:
+            raise HTTPException(status_code=404, detail='Student not found')
+        if target_student.get('department_id') != faculty.get('department_id'):
+            raise HTTPException(status_code=403, detail='Not authorized to view other departments attendance')
 
     pipeline = [
         {'$match': {'student_id': student_id}},
@@ -501,6 +595,27 @@ async def get_marks(user=Depends(get_current_user), student_id: str = "", subjec
     if user['role'] == 'student':
         student = await get_student_profile_by_user(user['id'])
         if student: query['student_id'] = student['id']
+    elif user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            return {'marks': []}
+
+        dept_student_docs = await db.students.find({'department_id': faculty.get('department_id', '')}, {'_id': 0, 'id': 1}).to_list(2000)
+        dept_student_ids = [s['id'] for s in dept_student_docs]
+
+        if student_id:
+            if student_id not in dept_student_ids:
+                raise HTTPException(status_code=403, detail='Not authorized to view other departments marks')
+            query['student_id'] = student_id
+        else:
+            query['student_id'] = {'$in': dept_student_ids} if dept_student_ids else '__none__'
+
+        if subject_id:
+            subject = await db.subjects.find_one({'id': subject_id}, {'_id': 0})
+            if not subject:
+                raise HTTPException(status_code=404, detail='Subject not found')
+            if subject.get('department_id') != faculty.get('department_id'):
+                raise HTTPException(status_code=403, detail='Not authorized to view other departments subjects')
     elif student_id:
         query['student_id'] = student_id
         
@@ -512,6 +627,23 @@ async def get_marks(user=Depends(get_current_user), student_id: str = "", subjec
 async def create_marks(data: MarksCreate, user=Depends(get_current_user)):
     if user['role'] not in ['admin', 'faculty']:
         raise HTTPException(status_code=403, detail='Not authorized')
+
+    if user['role'] == 'faculty':
+        faculty = await get_faculty_profile_by_user(user['id'])
+        if not faculty:
+            raise HTTPException(status_code=404, detail='Faculty profile not found')
+
+        subject = await db.subjects.find_one({'id': data.subject_id}, {'_id': 0})
+        if not subject:
+            raise HTTPException(status_code=404, detail='Subject not found')
+        if subject.get('department_id') != faculty.get('department_id'):
+            raise HTTPException(status_code=403, detail='Not authorized for this subject')
+
+        student = await db.students.find_one({'id': data.student_id}, {'_id': 0})
+        if not student:
+            raise HTTPException(status_code=404, detail='Student not found')
+        if student.get('department_id') != faculty.get('department_id'):
+            raise HTTPException(status_code=403, detail='Not authorized for this student')
         
     total = data.internal_marks + data.practical_marks + data.final_marks
     percentage = round(total, 1)
@@ -693,9 +825,13 @@ async def global_search(q: str = "", user=Depends(get_current_user)):
 
     # --- FACULTY: students, subjects, notices search kar sakta hai ---
     elif role == 'faculty':
+        faculty_profile = await get_faculty_profile_by_user(user['id'])
+        faculty_dept = faculty_profile.get('department_id', '') if faculty_profile else ''
+
         # Students
-        students = await db.students.find({'$or': [
-            {'full_name': regex_filter}, {'roll_number': regex_filter}, {'email': regex_filter}
+        students = await db.students.find({'$and': [
+            {'department_id': faculty_dept},
+            {'$or': [{'full_name': regex_filter}, {'roll_number': regex_filter}, {'email': regex_filter}]}
         ]}, {'_id': 0}).limit(5).to_list(5)
         for s in students:
             results.append({'type': 'student', 'title': s['full_name'],
@@ -703,8 +839,9 @@ async def global_search(q: str = "", user=Depends(get_current_user)):
                 'path': '/students', 'id': s['id']})
 
         # Subjects
-        subjects = await db.subjects.find({'$or': [
-            {'name': regex_filter}, {'code': regex_filter}
+        subjects = await db.subjects.find({'$and': [
+            {'department_id': faculty_dept},
+            {'$or': [{'name': regex_filter}, {'code': regex_filter}]}
         ]}, {'_id': 0}).limit(5).to_list(5)
         for s in subjects:
             results.append({'type': 'subject', 'title': s['name'],
@@ -712,8 +849,9 @@ async def global_search(q: str = "", user=Depends(get_current_user)):
                 'path': '/subjects', 'id': s['id']})
 
         # Notices
-        notices = await db.notices.find({'$or': [
-            {'title': regex_filter}, {'description': regex_filter}
+        notices = await db.notices.find({'$and': [
+            {'$or': [{'audience': 'all'}, {'audience': 'faculty'}]},
+            {'$or': [{'title': regex_filter}, {'description': regex_filter}]}
         ]}, {'_id': 0}).limit(5).to_list(5)
         for n in notices:
             results.append({'type': 'notice', 'title': n['title'],
