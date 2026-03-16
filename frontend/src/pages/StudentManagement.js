@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import api from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ const emptyForm = {
 export default function StudentManagement() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [students, setStudents] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,19 @@ export default function StudentManagement() {
   }, []);
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
+
+  // Auto-open view modal when search result clicked
+  useEffect(() => {
+    if (location.state?.searchItemId && students.length > 0) {
+      const student = students.find(s => s.id === location.state.searchItemId);
+      if (student) {
+        setViewStudent(student);
+        setViewOpen(true);
+        // Clear the state to prevent reopening on page refresh
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state?.searchItemId, students]);
 
   const deptName = (id) => departments.find((d) => d.id === id)?.name || '-';
 

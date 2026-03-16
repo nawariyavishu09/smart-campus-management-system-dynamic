@@ -155,7 +155,10 @@ function GlobalSearch() {
     setOpen(false);
     setQuery('');
     setResults([]);
-    navigate(`${result.path}?search=${encodeURIComponent(result.title)}`);
+    // Pass the item ID in state so destination page can open detail modal
+    navigate(`${result.path}`, {
+      state: { searchItemId: result.id, searchItemType: result.type }
+    });
   };
 
   const handleClear = () => {

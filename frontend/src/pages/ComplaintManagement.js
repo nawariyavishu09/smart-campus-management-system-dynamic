@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 
 export default function ComplaintManagement() {
   const { user } = useAuth();
+  const location = useLocation();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,6 +36,18 @@ export default function ComplaintManagement() {
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchComplaints(); }, [filterStatus]);
+
+  // Auto-open detail modal when search result clicked
+  useEffect(() => {
+    if (location.state?.searchItemId && complaints.length > 0) {
+      const complaint = complaints.find(c => c.id === location.state.searchItemId);
+      if (complaint) {
+        openUpdate(complaint);
+        // Clear the state to prevent reopening on page refresh
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state?.searchItemId, complaints]);
 
   const handleSubmit = async () => {
     if (!form.title || !form.description) { toast.error('Title and description required'); return; }
