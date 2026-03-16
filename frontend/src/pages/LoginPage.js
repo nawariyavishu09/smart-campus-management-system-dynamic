@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { GraduationCap, Eye, EyeOff, Loader2, ShieldCheck, BookOpen, ArrowRight, Sparkles } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, Loader2, ShieldCheck, BookOpen, ArrowRight, Sparkles, AlertTriangle, Shield, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const roles = [
@@ -22,12 +22,22 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [time, setTime] = useState(new Date());
+  const [rememberEmail, setRememberEmail] = useState(true);
+  const [capsOn, setCapsOn] = useState(false);
 
   const selected = roles.find(r => r.key === activeRole);
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('remembered_email');
+    if (saved) {
+      setEmail(saved);
+      setRememberEmail(true);
+    }
   }, []);
 
   const handleSubmit = async (e) => {
@@ -44,6 +54,8 @@ export default function LoginPage() {
         return;
       }
       toast.success(`Welcome, ${user.name}!`);
+      if (rememberEmail) localStorage.setItem('remembered_email', email);
+      else localStorage.removeItem('remembered_email');
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
@@ -54,6 +66,7 @@ export default function LoginPage() {
   };
 
   const fillDemo = () => { if (selected) { setEmail(selected.demo.email); setPassword(selected.demo.pw); } };
+  const portalTime = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
     <div className="min-h-screen flex overflow-hidden bg-gradient-to-br from-slate-950 via-blue-900 to-slate-950" data-testid="login-page">
@@ -134,6 +147,19 @@ export default function LoginPage() {
             <p className="text-slate-500 text-base font-medium">Sign in to your campus portal</p>
           </div>
 
+          <div className="pro-card bg-white/85 backdrop-blur-md p-3 rounded-xl border border-slate-200/80">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="inline-flex items-center gap-1.5 text-emerald-700">
+                <Shield className="w-3.5 h-3.5" />
+                Secure Session
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-slate-500">
+                <Clock3 className="w-3.5 h-3.5" />
+                {portalTime}
+              </span>
+            </div>
+          </div>
+
           {/* Role Cards */}
           <div className="grid grid-cols-3 gap-3 pt-2" data-testid="role-tabs">
             {roles.map((r) => {
@@ -165,32 +191,79 @@ export default function LoginPage() {
             })}
           </div>
 
+          <p className="text-xs text-slate-500 font-medium -mt-1">
+            You are signing into the <span className="font-black text-slate-700">{selected?.label}</span> portal. Use matching credentials for role-based access.
+          </p>
+
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5 pt-3" data-testid="login-form">
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-700 uppercase tracking-widest">Email Address</label>
-              <div className="relative group">
-                <Input type="email" placeholder={`Enter ${selected?.label.toLowerCase()} email`} value={email} onChange={(e) => setEmail(e.target.value)} data-testid="login-email"
-                  className="w-full h-13 rounded-xl bg-white border-2 border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-300 group-focus-within:border-indigo-500 group-focus-within:shadow-lg group-focus-within:shadow-indigo-200 focus:outline-none text-base px-4" />
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-focus-within:opacity-5 transition-opacity duration-300 pointer-events-none" />
+          <form onSubmit={handleSubmit} className="space-y-5 pt-3 pro-card bg-white/90 backdrop-blur-md p-5" data-testid="login-form">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-700 uppercase tracking-widest">Email Address</label>
+                <div className="relative group">
+                  <Input type="email" placeholder={`Enter ${selected?.label.toLowerCase()} email`} value={email} onChange={(e) => setEmail(e.target.value)} data-testid="login-email"
+                    className="w-full h-12 rounded-xl bg-white border-2 border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-300 group-focus-within:border-indigo-500 group-focus-within:shadow-lg group-focus-within:shadow-indigo-200 focus:outline-none text-base px-4" />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-focus-within:opacity-5 transition-opacity duration-300 pointer-events-none" />
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-700 uppercase tracking-widest">Password</label>
-              <div className="relative group">
-                <Input type={showPw ? 'text' : 'password'} placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="login-password"
-                  className="w-full h-13 rounded-xl bg-white border-2 border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-300 group-focus-within:border-indigo-500 group-focus-within:shadow-lg group-focus-within:shadow-indigo-200 focus:outline-none text-base px-4 pr-12" />
-                <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-all duration-200 hover:scale-110" onClick={() => setShowPw(!showPw)} data-testid="toggle-password">
-                  {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-700 uppercase tracking-widest">Password</label>
+                <div className="relative group">
+                  <Input
+                    type={showPw ? 'text' : 'password'}
+                    placeholder="Enter password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyUp={(e) => setCapsOn(e.getModifierState && e.getModifierState('CapsLock'))}
+                    onBlur={() => setCapsOn(false)}
+                    data-testid="login-password"
+                    className="w-full h-12 rounded-xl bg-white border-2 border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-300 group-focus-within:border-indigo-500 group-focus-within:shadow-lg group-focus-within:shadow-indigo-200 focus:outline-none text-base px-4 pr-12"
+                  />
+                  <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-all duration-200 hover:scale-110" onClick={() => setShowPw(!showPw)} data-testid="toggle-password">
+                    {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {capsOn && (
+                  <p className="text-xs font-semibold text-amber-700 inline-flex items-center gap-1.5" data-testid="caps-warning">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Caps Lock is ON
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberEmail}
+                    onChange={(e) => setRememberEmail(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    data-testid="remember-email"
+                  />
+                  <span className="text-slate-600 font-medium">Remember email</span>
+                </label>
+
+                <button
+                  type="button"
+                  className="text-indigo-600 font-semibold hover:text-indigo-700"
+                  onClick={() => toast.info('Please contact admin to reset your password.')}
+                  data-testid="forgot-password"
+                >
+                  Forgot password?
                 </button>
               </div>
             </div>
 
             <Button type="submit" disabled={loading} data-testid="login-submit"
-              className={`w-full h-13 rounded-xl font-bold text-base text-white shadow-xl transition-all duration-300 bg-gradient-to-r ${selected?.color} hover:shadow-2xl hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed`}>
+              className={`w-full h-12 rounded-xl font-bold text-base text-white shadow-xl transition-all duration-300 bg-gradient-to-r ${selected?.color} hover:shadow-2xl hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed`}>
               {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2 inline" /> : null}
               {loading ? 'Signing in...' : <>Sign in as {selected?.label} <ArrowRight className="w-5 h-5 ml-2 inline transition-transform group-hover:translate-x-1" /></>}
             </Button>
+
+            <p className="text-[11px] text-slate-500 text-center font-medium">
+              By signing in, you agree to campus access and acceptable-use policy.
+            </p>
           </form>
 
           {/* Demo quick-fill */}
@@ -213,25 +286,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) scale(1); }
-          50% { transform: translateY(-40px) scale(1.05); }
-        }
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.8; }
-        }
-        @keyframes shimmer {
-          0% { background-position: -1000px 0; }
-          100% { background-position: 1000px 0; }
-        }
-        @keyframes glow-pulse {
-          0%, 100% { filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.6)); }
-          50% { filter: drop-shadow(0 0 40px rgba(99, 102, 241, 0.8)); }
-        }
-        .animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
-      `}</style>
     </div>
   );
 }
