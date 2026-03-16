@@ -78,7 +78,7 @@ export default function DepartmentManagement() {
   return (
     <div className="space-y-6 animate-fade-in" data-testid="department-management">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 p-8 text-white shadow-xl">
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-indigo-500/20 backdrop-blur-md rounded-lg border border-indigo-400/30">
@@ -99,7 +99,7 @@ export default function DepartmentManagement() {
         )}
       </div>
 
-      <Card className="rounded-xl border-border/50 overflow-hidden shadow-lg">
+      <Card className="pro-card bg-card overflow-hidden shadow-lg">
         <CardContent className="p-0">
           {loading ? (
             <div className="space-y-2 p-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
@@ -107,7 +107,7 @@ export default function DepartmentManagement() {
             <div className="text-center py-12"><p className="text-muted-foreground">No departments found</p></div>
           ) : (
             <div className="overflow-x-auto">
-            <Table>
+            <Table className="pro-table">
               <TableHeader>
                 <TableRow className="hover:bg-transparent bg-slate-100 dark:bg-slate-800 border-b">
                   <TableHead className="font-semibold text-xs">Name</TableHead>

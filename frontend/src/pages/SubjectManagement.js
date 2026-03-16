@@ -75,7 +75,7 @@ export default function SubjectManagement() {
 
   return (
     <div className="space-y-6 animate-fade-in" data-testid="subject-management">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 p-8 text-white shadow-xl">
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
         <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle at 20% 50%, indigo, transparent 50%)'}}></div>
         <div className="relative z-10">
           <div className="p-3 rounded-2xl bg-indigo-600/30 backdrop-blur-xl border border-indigo-400/30 w-fit mb-4">
@@ -136,12 +136,12 @@ export default function SubjectManagement() {
         )}
       </div>
 
-      <Card className="rounded-xl border-border/50 shadow-md">
+      <Card className="pro-card bg-card shadow-md">
         <CardContent className="p-6">
           {loading ? <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div> : subjects.length === 0 ? (
             <div className="text-center py-12"><p className="text-muted-foreground">No subjects found</p></div>
           ) : (
-            <Table>
+            <Table className="pro-table">
               <TableHeader>
                 <TableRow className="hover:bg-transparent bg-slate-900/5 dark:bg-slate-700/20">
                   <TableHead className="font-bold text-slate-900 dark:text-slate-100">Subject</TableHead>

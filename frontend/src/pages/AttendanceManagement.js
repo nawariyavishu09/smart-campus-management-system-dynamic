@@ -1,324 +1,276 @@
-import { useState, useEffect } from "react"
-import api from "@/services/api"
-import { useAuth } from "@/contexts/AuthContext"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { CalendarCheck, Save } from "lucide-react"
-import { toast } from "sonner"
+import { useState, useEffect } from "react";
+import api from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { CalendarCheck, Save, Users, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AttendanceManagement() {
+  const { user } = useAuth();
 
-  const { user } = useAuth()
+  const [subjects, setSubjects] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [attendance, setAttendance] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  const [subjects, setSubjects] = useState([])
-  const [students, setStudents] = useState([])
-  const [selectedSubject, setSelectedSubject] = useState("")
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  )
-
-  const [attendance, setAttendance] = useState({})
-  const [saving, setSaving] = useState(false)
-
-  const canMark = ["admin", "faculty"].includes(user?.role)
+  const canMark = ["admin", "faculty"].includes(user?.role);
 
   useEffect(() => {
-    api.get("/subjects")
-      .then((res) => {
-        setSubjects(res.data.subjects || [])
+    api
+      .get("/subjects")
+      .then((res) => setSubjects(res.data.subjects || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSubject) return;
+
+    const subj = subjects.find((s) => String(s.id) === String(selectedSubject));
+    if (!subj) return;
+
+    api
+      .get("/students", {
+        params: {
+          department_id: subj.department_id,
+          limit: 100,
+        },
       })
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-
-    if (!selectedSubject) return
-
-    const subj = subjects.find(
-      (s) => String(s.id) === String(selectedSubject)
-    )
-
-    if (!subj) return
-
-    api.get("/students", {
-      params: {
-        department_id: subj.department_id,
-        limit: 100,
-      },
-    })
       .then((res) => {
+        const list = res.data.students || [];
+        setStudents(list);
 
-        const list = res.data.students || []
-        setStudents(list)
-
-        const initial = {}
-
+        const initial = {};
         list.forEach((s) => {
-          initial[s.id] = "present"
-        })
-
-        setAttendance(initial)
-
+          initial[s.id] = "present";
+        });
+        setAttendance(initial);
       })
-      .catch(() => {})
+      .catch(() => {});
 
-    api.get("/attendance", {
-      params: {
-        subject_id: selectedSubject,
-        date: selectedDate,
-      },
-    })
+    api
+      .get("/attendance", {
+        params: {
+          subject_id: selectedSubject,
+          date: selectedDate,
+        },
+      })
       .then((res) => {
-
-        const existing = {}
-
-        ;(res.data.attendance || []).forEach((a) => {
-          existing[a.student_id] = a.status
-        })
-
+        const existing = {};
+        (res.data.attendance || []).forEach((a) => {
+          existing[a.student_id] = a.status;
+        });
         if (Object.keys(existing).length > 0) {
-          setAttendance((prev) => ({ ...prev, ...existing }))
+          setAttendance((prev) => ({ ...prev, ...existing }));
         }
-
       })
-      .catch(() => {})
-
-  }, [selectedSubject, selectedDate, subjects])
+      .catch(() => {});
+  }, [selectedSubject, selectedDate, subjects]);
 
   const handleMark = (studentId, status) => {
-
     setAttendance((prev) => ({
       ...prev,
       [studentId]: status,
-    }))
-
-  }
+    }));
+  };
 
   const handleSave = async () => {
-
     if (!selectedSubject || !selectedDate) {
-      toast.error("Select subject and date")
-      return
+      toast.error("Select subject and date");
+      return;
     }
 
-    setSaving(true)
-
+    setSaving(true);
     try {
-
-      const records = Object.entries(attendance).map(
-        ([student_id, status]) => ({
-          student_id,
-          status,
-        })
-      )
+      const records = Object.entries(attendance).map(([student_id, status]) => ({
+        student_id,
+        status,
+      }));
 
       await api.post("/attendance/bulk", {
         subject_id: selectedSubject,
         date: selectedDate,
         records,
-      })
+      });
 
-      toast.success("Attendance saved successfully")
-
+      toast.success("Attendance saved successfully");
     } catch {
-      toast.error("Failed to save attendance")
+      toast.error("Failed to save attendance");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
+
+  const presentCount = Object.values(attendance).filter((v) => v === "present").length;
+  const absentCount = Object.values(attendance).filter((v) => v === "absent").length;
+  const lateCount = Object.values(attendance).filter((v) => v === "late").length;
 
   return (
-    <div className="space-y-8">
-      {/* Professional Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 p-8 text-white shadow-xl">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute w-96 h-96 bg-white rounded-full blur-3xl -top-32 -right-32"></div>
-        </div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-blue-500/20 backdrop-blur-md rounded-lg border border-blue-400/30">
-              <CalendarCheck className="w-8 h-8 text-blue-300" />
+    <div className="space-y-6 animate-fade-in">
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900">
+        <div className="grid-pattern" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center">
+                <CalendarCheck className="w-4 h-4 text-emerald-300" />
+              </span>
+              <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Attendance Management</span>
             </div>
-            <div>
-              <h1 className="text-4xl font-extrabold tracking-tight">Attendance Management</h1>
-              <p className="text-blue-200 text-sm font-medium mt-1">Real-time attendance tracking and management system</p>
-            </div>
+            <h1 className="text-3xl font-black tracking-tight mb-1">Mark Attendance</h1>
+            <p className="text-slate-400 text-sm">Real-time attendance tracking and management</p>
           </div>
+          {canMark && selectedSubject && (
+            <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-5 shadow-lg shadow-emerald-900/30 shrink-0">
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Attendance
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="relative rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-slate-600 to-slate-900"></div>
-        
-        <CardContent className="relative p-8">
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-            <div className="md:col-span-1">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-3">Subject</label>
-              <Select
-                value={selectedSubject}
-                onValueChange={setSelectedSubject}
-              >
-                <SelectTrigger className="w-full h-11 rounded-lg bg-slate-50 border-2 border-slate-200 text-slate-900 transition-all duration-200 hover:border-blue-400 focus:border-blue-600 focus:shadow-md focus:shadow-blue-100 text-sm font-medium">
+      <div className="pro-card bg-card stat-accent-emerald">
+        <div className="p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Subject</label>
+              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                <SelectTrigger className="h-10 rounded-xl">
                   <SelectValue placeholder="Select a subject..." />
                 </SelectTrigger>
-
-                <SelectContent className="rounded-lg">
+                <SelectContent>
                   {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id} className="cursor-pointer">
+                    <SelectItem key={s.id} value={s.id}>
                       <span className="font-medium">{s.name}</span>
-                      <span className="text-slate-500 ml-2 text-xs">({s.code})</span>
+                      {s.code && <span className="text-muted-foreground ml-2 text-xs">({s.code})</span>}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="md:col-span-1">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-3">Date</label>
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full h-11 rounded-lg bg-slate-50 border-2 border-slate-200 text-slate-900 transition-all duration-200 hover:border-blue-400 focus:border-blue-600 focus:shadow-md focus:shadow-blue-100 focus:outline-none text-sm font-medium px-3"
-              />
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</label>
+              <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="h-10 rounded-xl" />
             </div>
-
-            <div className="md:col-span-1 flex items-end">
-              {canMark && selectedSubject && (
-                <Button 
-                  onClick={handleSave} 
-                  disabled={saving}
-                  className="w-full h-11 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? "Saving..." : "Save Attendance"}
-                </Button>
-              )}
-            </div>
-
           </div>
-
-          {!selectedSubject ? (
-
-            <div className="text-center py-20 px-6">
-              <div className="inline-block p-4 bg-slate-100 rounded-xl mb-4">
-                <CalendarCheck className="w-12 h-12 text-slate-400" />
-              </div>
-              <p className="text-slate-600 font-semibold text-lg mb-1">
-                No subject selected
-              </p>
-              <p className="text-slate-400 text-sm">Select a subject from the dropdown to begin marking attendance</p>
-            </div>
-
-          ) : students.length === 0 ? (
-
-            <div className="text-center py-20 px-6">
-              <div className="inline-block p-4 bg-slate-100 rounded-xl mb-4">
-                <CalendarCheck className="w-12 h-12 text-slate-400" />
-              </div>
-              <p className="text-slate-600 font-semibold text-lg mb-1">
-                No students enrolled
-              </p>
-              <p className="text-slate-400 text-sm">This subject has no students to mark attendance for</p>
-            </div>
-
-          ) : (
-
-            <div className="overflow-x-auto">
-              <Table>
-
-                <TableHeader>
-                  <TableRow className="bg-slate-50 border-b-2 border-slate-200 hover:bg-slate-50">
-                    <TableHead className="font-bold text-slate-700 text-xs">#</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-xs">Student Name</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-xs">Roll Number</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-xs">Attendance Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-
-                <TableBody>
-
-                  {students.map((s, idx) => (
-
-                    <TableRow key={s.id} className="hover:bg-blue-50/50 transition-colors border-b border-slate-150">
-
-                      <TableCell className="font-semibold text-slate-700 py-4">{idx + 1}</TableCell>
-                      <TableCell className="font-medium text-slate-900 py-4">{s.full_name}</TableCell>
-                      <TableCell className="font-mono text-slate-600 text-sm py-4">{s.roll_number}</TableCell>
-
-                      <TableCell className="py-4">
-
-                        <div className="flex gap-2">
-
-                          <button
-                            onClick={() => handleMark(s.id, "present")}
-                            className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all duration-200 ${
-                              attendance[s.id] === "present"
-                                ? "bg-emerald-600 text-white shadow-md"
-                                : "bg-slate-100 text-slate-700 border border-slate-300 hover:bg-emerald-50 hover:border-emerald-300"
-                            }`}
-                          >
-                            Present
-                          </button>
-
-                          <button
-                            onClick={() => handleMark(s.id, "absent")}
-                            className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all duration-200 ${
-                              attendance[s.id] === "absent"
-                                ? "bg-red-600 text-white shadow-md"
-                                : "bg-slate-100 text-slate-700 border border-slate-300 hover:bg-red-50 hover:border-red-300"
-                            }`}
-                          >
-                            Absent
-                          </button>
-
-                          <button
-                            onClick={() => handleMark(s.id, "late")}
-                            className={`px-3 py-1.5 rounded-md font-semibold text-xs transition-all duration-200 ${
-                              attendance[s.id] === "late"
-                                ? "bg-amber-600 text-white shadow-md"
-                                : "bg-slate-100 text-slate-700 border border-slate-300 hover:bg-amber-50 hover:border-amber-300"
-                            }`}
-                          >
-                            Late
-                          </button>
-
-                        </div>
-
-                      </TableCell>
-
-                    </TableRow>
-
-                  ))}
-
-                </TableBody>
-
-              </Table>
-            </div>
-
-          )}
-
-        </CardContent>
+        </div>
       </div>
 
+      {selectedSubject && students.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="pro-card bg-card stat-accent-emerald p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xl font-black">{presentCount}</p>
+              <p className="text-xs text-muted-foreground font-medium">Present</p>
+            </div>
+          </div>
+          <div className="pro-card bg-card stat-accent-red p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+              <XCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-xl font-black">{absentCount}</p>
+              <p className="text-xs text-muted-foreground font-medium">Absent</p>
+            </div>
+          </div>
+          <div className="pro-card bg-card stat-accent-amber p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xl font-black">{lateCount}</p>
+              <p className="text-xs text-muted-foreground font-medium">Late</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="pro-card bg-card overflow-hidden">
+        {!selectedSubject ? (
+          <div className="p-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto mb-4">
+              <CalendarCheck className="w-8 h-8 text-muted-foreground/40" />
+            </div>
+            <p className="font-semibold text-muted-foreground">Select a subject to begin</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">Choose a subject and date from above</p>
+          </div>
+        ) : students.length === 0 ? (
+          <div className="p-16 text-center">
+            <Users className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">No students enrolled</p>
+          </div>
+        ) : (
+          <>
+            <div className="px-5 py-3.5 border-b border-border/40 flex items-center justify-between">
+              <p className="text-sm font-bold">{students.length} Students</p>
+              <p className="text-xs text-muted-foreground">{selectedDate}</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full pro-table">
+                <thead>
+                  <tr>
+                    <th className="w-10">#</th>
+                    <th>Student</th>
+                    <th className="hidden sm:table-cell">Roll No</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((s, idx) => {
+                    const avatarColors = ["bg-indigo-500", "bg-emerald-500", "bg-blue-500", "bg-purple-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
+                    const avatarColor = avatarColors[(s.full_name?.charCodeAt(0) || 0) % avatarColors.length];
+                    const initials = s.full_name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
+                    const status = attendance[s.id] || "present";
+                    return (
+                      <tr key={s.id}>
+                        <td className="text-muted-foreground text-sm">{idx + 1}</td>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg ${avatarColor} flex items-center justify-center text-white text-xs font-black shrink-0`}>{initials}</div>
+                            <span className="font-semibold text-sm">{s.full_name}</span>
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell">
+                          <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-mono text-[11px] rounded-lg border-0">{s.roll_number}</Badge>
+                        </td>
+                        <td>
+                          {canMark ? (
+                            <div className="flex gap-1.5">
+                              <button onClick={() => handleMark(s.id, "present")} className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${status === "present" ? "bg-emerald-600 text-white shadow-sm" : "bg-muted text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20"}`}>Present</button>
+                              <button onClick={() => handleMark(s.id, "absent")} className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${status === "absent" ? "bg-red-600 text-white shadow-sm" : "bg-muted text-muted-foreground hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"}`}>Absent</button>
+                              <button onClick={() => handleMark(s.id, "late")} className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${status === "late" ? "bg-amber-500 text-white shadow-sm" : "bg-muted text-muted-foreground hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-900/20"}`}>Late</button>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${status === "present" ? "bg-emerald-100 text-emerald-700" : status === "absent" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                              {status}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
     </div>
-  )
+  );
 }

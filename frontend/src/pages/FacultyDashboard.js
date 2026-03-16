@@ -44,7 +44,8 @@ export default function FacultyDashboard() {
   return (
     <div className="space-y-6 animate-fade-in" data-testid="faculty-dashboard">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 p-8 text-white shadow-xl">
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900">
+        <div className="grid-pattern" />
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-blue-500/20 backdrop-blur-md rounded-lg border border-blue-400/30">
@@ -64,7 +65,7 @@ export default function FacultyDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-lg transition-shadow" data-testid="stat-students-count">
+        <Card className="pro-card bg-card stat-accent-blue" data-testid="stat-students-count">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -78,7 +79,7 @@ export default function FacultyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-lg transition-shadow" data-testid="stat-subjects-count">
+        <Card className="pro-card bg-card stat-accent-emerald" data-testid="stat-subjects-count">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -92,7 +93,7 @@ export default function FacultyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-lg transition-shadow" data-testid="stat-department">
+        <Card className="pro-card bg-card stat-accent-amber" data-testid="stat-department">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -108,8 +109,8 @@ export default function FacultyDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card className="rounded-xl border-border/50 overflow-hidden">
-        <CardHeader className="pb-4 bg-slate-100 dark:bg-slate-800 border-b">
+      <Card className="pro-card bg-card overflow-hidden">
+        <CardHeader className="pb-4 border-b border-border/40">
           <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -152,8 +153,8 @@ export default function FacultyDashboard() {
 
       {/* Subjects & Notices */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="rounded-xl border-border/50 overflow-hidden">
-          <CardHeader className="pb-4 bg-slate-100 dark:bg-slate-800 border-b">
+        <Card className="pro-card bg-card overflow-hidden">
+          <CardHeader className="pb-4 border-b border-border/40">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/30">
                 <BookOpen className="w-4 h-4 text-blue-600" />
@@ -183,8 +184,8 @@ export default function FacultyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-border/50 overflow-hidden">
-          <CardHeader className="pb-4 bg-slate-100 dark:bg-slate-800 border-b">
+        <Card className="pro-card bg-card overflow-hidden">
+          <CardHeader className="pb-4 border-b border-border/40">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/30">
                 <Megaphone className="w-4 h-4 text-purple-600" />

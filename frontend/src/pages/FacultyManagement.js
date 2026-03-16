@@ -87,7 +87,7 @@ export default function FacultyManagement() {
   return (
     <div className="space-y-6 animate-fade-in" data-testid="faculty-management">
       {/* Professional Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 p-8 text-white shadow-xl">
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-slate-500 rounded-full mix-blend-multiply blur-3xl"></div>
@@ -152,8 +152,8 @@ export default function FacultyManagement() {
         </Card>
       </div>
 
-      <Card className="rounded-xl border-border/50 overflow-hidden">
-        <CardHeader className="pb-4 bg-slate-100 dark:bg-slate-800 border-b">
+      <Card className="pro-card bg-card overflow-hidden">
+        <CardHeader className="pb-4 border-b border-border/40">
           <CardTitle className="text-base font-semibold">Faculty Directory</CardTitle>
         </CardHeader>
         <CardContent className="p-4">
@@ -184,7 +184,7 @@ export default function FacultyManagement() {
             <div className="text-center py-12"><p className="text-muted-foreground">No faculty found</p></div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="pro-table">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                     <TableHead className="font-bold text-slate-700 dark:text-slate-300">Name</TableHead>

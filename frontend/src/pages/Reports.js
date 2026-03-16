@@ -22,7 +22,8 @@ export default function Reports() {
   return (
     <div className="space-y-6 animate-fade-in" data-testid="reports-page">
       {/* Professional Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-cyan-900 to-slate-900 p-8 text-white shadow-xl">
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900">
+        <div className="grid-pattern" />
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-slate-500 rounded-full mix-blend-multiply blur-3xl"></div>
@@ -40,7 +41,7 @@ export default function Reports() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-lg transition-shadow">
+        <Card className="pro-card bg-card stat-accent-cyan">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -54,7 +55,7 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-lg transition-shadow">
+        <Card className="pro-card bg-card stat-accent-emerald">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -75,7 +76,7 @@ export default function Reports() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {reports.map(r => (
-            <Card key={r.id} className="rounded-xl border-border/50 overflow-hidden hover:shadow-lg transition-all duration-200 group" data-testid={`report-card-${r.id}`}>
+            <Card key={r.id} className="pro-card bg-card overflow-hidden transition-all duration-200 group" data-testid={`report-card-${r.id}`}>
               <div className={`h-1 ${r.color.replace('text-', 'bg-')}`}></div>
               <CardContent className="p-6">
                 <div className={`p-3 rounded-xl ${r.bg} w-fit mb-4 group-hover:scale-110 transition-transform`}>
@@ -97,7 +98,7 @@ export default function Reports() {
         </div>
       </div>
 
-      <Card className="rounded-xl border-border/50 overflow-hidden bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-950/20 dark:to-teal-950/20">
+      <Card className="pro-card overflow-hidden bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-950/20 dark:to-teal-950/20">
         <CardContent className="p-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <TrendingUp className="w-4 h-4 text-cyan-600" />

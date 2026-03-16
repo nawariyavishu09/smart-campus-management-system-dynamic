@@ -90,7 +90,7 @@ export default function ComplaintManagement() {
   return (
     <div className="space-y-6 animate-fade-in" data-testid="complaint-management">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-red-900 to-slate-900 p-8 text-white shadow-xl">
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-red-950 to-slate-900">
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-red-500/20 backdrop-blur-md rounded-lg border border-red-400/30">

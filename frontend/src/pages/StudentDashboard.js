@@ -42,8 +42,8 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6 animate-fade-in" data-testid="student-dashboard">
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 p-8 text-white shadow-xl">
-        <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle at 20% 50%, blue, transparent 50%)'}}></div>
+      <div className="hero-banner bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900">
+        <div className="grid-pattern" />
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-blue-600/40 backdrop-blur-xl rounded-2xl border border-blue-400/30 shadow-lg">
@@ -63,7 +63,7 @@ export default function StudentDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20" data-testid="stat-attendance">
+        <Card className="pro-card bg-card stat-accent-emerald" data-testid="stat-attendance">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -79,7 +79,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20" data-testid="stat-avg-marks">
+        <Card className="pro-card bg-card stat-accent-blue" data-testid="stat-avg-marks">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -93,7 +93,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20" data-testid="stat-subjects">
+        <Card className="pro-card bg-card stat-accent-amber" data-testid="stat-subjects">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -107,7 +107,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-border/50 overflow-hidden group hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-rose-50/50 to-transparent dark:from-rose-950/20" data-testid="stat-complaints">
+        <Card className="pro-card bg-card stat-accent-red" data-testid="stat-complaints">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -124,8 +124,8 @@ export default function StudentDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Marks */}
-        <Card className="rounded-xl border-border/50 overflow-hidden shadow-md">
-          <CardHeader className="pb-4 bg-gradient-to-r from-slate-900/5 to-blue-900/5 dark:from-slate-700/20 dark:to-blue-700/20 border-b border-blue-200/50 dark:border-blue-800/40">
+        <Card className="pro-card bg-card overflow-hidden shadow-md">
+          <CardHeader className="pb-4 border-b border-border/40">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-900 dark:text-white">
               <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/40">
                 <FileBarChart className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -140,9 +140,9 @@ export default function StudentDashboard() {
                 <p className="text-sm text-muted-foreground">No marks available yet</p>
               </div>
             ) : (
-              <Table>
+              <Table className="pro-table">
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent bg-slate-900/5 dark:bg-slate-700/20 border-b-slate-200 dark:border-b-slate-700">
+                  <TableRow className="hover:bg-transparent">
                     <TableHead className="font-bold text-xs text-slate-900 dark:text-slate-100">Subject</TableHead>
                     <TableHead className="font-bold text-xs text-slate-900 dark:text-slate-100">Total</TableHead>
                     <TableHead className="font-bold text-xs text-slate-900 dark:text-slate-100">Grade</TableHead>
@@ -165,8 +165,8 @@ export default function StudentDashboard() {
         </Card>
 
         {/* Latest Notices */}
-        <Card className="rounded-xl border-border/50 overflow-hidden shadow-md">
-          <CardHeader className="pb-4 bg-gradient-to-r from-slate-900/5 to-purple-900/5 dark:from-slate-700/20 dark:to-purple-700/20 border-b border-purple-200/50 dark:border-purple-800/40">
+        <Card className="pro-card bg-card overflow-hidden shadow-md">
+          <CardHeader className="pb-4 border-b border-border/40">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-900 dark:text-white">
               <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/40">
                 <Megaphone className="w-4 h-4 text-purple-600 dark:text-purple-400" />

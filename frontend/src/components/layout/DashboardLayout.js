@@ -11,52 +11,76 @@ import api from '@/services/api';
 import {
   LayoutDashboard, GraduationCap, Users, Building2, CalendarCheck,
   FileBarChart, Megaphone, MessageSquare, BarChart3, LogOut,
-  Menu, Search, Bell, Sun, Moon, BookOpen, Loader2, X
+  Menu, Search, Bell, Sun, Moon, BookOpen, Loader2, X, ChevronRight,
+  Sparkles, Shield
 } from 'lucide-react';
 
 const menuConfig = {
   admin: [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Students', icon: GraduationCap, path: '/students' },
-    { label: 'Faculty', icon: Users, path: '/faculty-members' },
-    { label: 'Departments', icon: Building2, path: '/departments' },
-    { label: 'Subjects', icon: BookOpen, path: '/subjects' },
-    { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
-    { label: 'Marks & Results', icon: FileBarChart, path: '/marks' },
-    { label: 'Notice Board', icon: Megaphone, path: '/notices' },
-    { label: 'Complaints', icon: MessageSquare, path: '/complaints' },
-    { label: 'Reports', icon: BarChart3, path: '/reports' },
+    { label: 'Dashboard',     icon: LayoutDashboard, path: '/dashboard',      color: 'text-indigo-400',  bg: 'bg-indigo-500/20' },
+    { label: 'Students',      icon: GraduationCap,   path: '/students',        color: 'text-blue-400',    bg: 'bg-blue-500/20' },
+    { label: 'Faculty',       icon: Users,           path: '/faculty-members', color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
+    { label: 'Departments',   icon: Building2,       path: '/departments',     color: 'text-purple-400',  bg: 'bg-purple-500/20' },
+    { label: 'Subjects',      icon: BookOpen,        path: '/subjects',        color: 'text-cyan-400',    bg: 'bg-cyan-500/20' },
+    { label: 'Attendance',    icon: CalendarCheck,   path: '/attendance',      color: 'text-teal-400',    bg: 'bg-teal-500/20' },
+    { label: 'Marks & Results', icon: FileBarChart,  path: '/marks',           color: 'text-amber-400',   bg: 'bg-amber-500/20' },
+    { label: 'Notice Board',  icon: Megaphone,       path: '/notices',         color: 'text-pink-400',    bg: 'bg-pink-500/20' },
+    { label: 'Complaints',    icon: MessageSquare,   path: '/complaints',      color: 'text-red-400',     bg: 'bg-red-500/20' },
+    { label: 'Reports',       icon: BarChart3,       path: '/reports',         color: 'text-orange-400',  bg: 'bg-orange-500/20' },
   ],
   faculty: [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
-    { label: 'Marks & Results', icon: FileBarChart, path: '/marks' },
-    { label: 'Notice Board', icon: Megaphone, path: '/notices' },
+    { label: 'Dashboard',      icon: LayoutDashboard, path: '/dashboard',  color: 'text-indigo-400', bg: 'bg-indigo-500/20' },
+    { label: 'Attendance',     icon: CalendarCheck,   path: '/attendance', color: 'text-teal-400',   bg: 'bg-teal-500/20' },
+    { label: 'Marks & Results',icon: FileBarChart,    path: '/marks',      color: 'text-amber-400',  bg: 'bg-amber-500/20' },
+    { label: 'Notice Board',   icon: Megaphone,       path: '/notices',    color: 'text-pink-400',   bg: 'bg-pink-500/20' },
   ],
   student: [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { label: 'Attendance', icon: CalendarCheck, path: '/attendance' },
-    { label: 'Marks & Results', icon: FileBarChart, path: '/marks' },
-    { label: 'Notice Board', icon: Megaphone, path: '/notices' },
-    { label: 'Complaints', icon: MessageSquare, path: '/complaints' },
+    { label: 'Dashboard',      icon: LayoutDashboard, path: '/dashboard',   color: 'text-indigo-400', bg: 'bg-indigo-500/20' },
+    { label: 'Attendance',     icon: CalendarCheck,   path: '/attendance',  color: 'text-teal-400',   bg: 'bg-teal-500/20' },
+    { label: 'Marks & Results',icon: FileBarChart,    path: '/marks',       color: 'text-amber-400',  bg: 'bg-amber-500/20' },
+    { label: 'Notice Board',   icon: Megaphone,       path: '/notices',     color: 'text-pink-400',   bg: 'bg-pink-500/20' },
+    { label: 'Complaints',     icon: MessageSquare,   path: '/complaints',  color: 'text-red-400',    bg: 'bg-red-500/20' },
   ],
 };
 
-function SidebarContent({ items, onItemClick }) {
+const roleConfig = {
+  admin:   { label: 'Administrator', icon: Shield,      gradient: 'from-amber-500 to-orange-600', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  faculty: { label: 'Faculty',       icon: BookOpen,    gradient: 'from-emerald-500 to-teal-600', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+  student: { label: 'Student',       icon: GraduationCap, gradient: 'from-indigo-500 to-purple-600', badge: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' },
+};
+
+function SidebarContent({ items, user, onItemClick }) {
+  const rc = roleConfig[user?.role] || roleConfig.student;
+  const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+
   return (
-    <div className="flex flex-col h-full" data-testid="sidebar">
-      <div className="p-6 border-b border-border/50">
+    <div className="flex flex-col h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" data-testid="sidebar">
+      {/* Logo */}
+      <div className="p-5 border-b border-white/8">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-primary-foreground" />
+          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${rc.gradient} flex items-center justify-center shadow-lg`}>
+            <GraduationCap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-sm tracking-tight" data-testid="app-title">Smart Campus</h1>
-            <p className="text-[10px] text-muted-foreground font-medium">Management System</p>
+            <h1 className="font-black text-sm tracking-tight text-white" data-testid="app-title">Smart Campus</h1>
+            <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Management System</p>
           </div>
         </div>
       </div>
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+
+      {/* Role badge */}
+      <div className="px-4 py-3">
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${rc.badge} text-xs font-semibold`}>
+          <rc.icon className="w-3.5 h-3.5" />
+          {rc.label} Portal
+          <span className="ml-auto">
+            <span className="status-dot status-dot-green" />
+          </span>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 pb-3 space-y-0.5 overflow-y-auto">
         {items.map((item) => (
           <NavLink
             key={item.path}
@@ -64,18 +88,34 @@ function SidebarContent({ items, onItemClick }) {
             onClick={onItemClick}
             data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-primary/10 text-primary border-l-[3px] border-primary ml-0'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`
+              `sidebar-nav-item ${isActive ? 'active' : ''}`
             }
           >
-            <item.icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
-            {item.label}
+            {({ isActive }) => (
+              <>
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${isActive ? item.bg : 'bg-white/5 group-hover:bg-white/8'}`}>
+                  <item.icon className={`w-4 h-4 ${isActive ? item.color : 'text-slate-500'}`} strokeWidth={isActive ? 2 : 1.5} />
+                </span>
+                <span className="flex-1 text-sm">{item.label}</span>
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-slate-500" />}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
+
+      {/* User card */}
+      <div className="p-3 border-t border-white/8">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/8 transition-colors">
+          <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${rc.gradient} flex items-center justify-center text-white text-xs font-black shrink-0 shadow-lg`}>
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white truncate">{user?.name}</p>
+            <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -250,21 +290,22 @@ export default function DashboardLayout() {
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
   const [notifications, setNotifications] = useState([]);
 
-  // Fetching recent notifications (notices) from API
   useEffect(() => {
     if (user) {
       api.get('/notices')
         .then((res) => {
           if (res.data && res.data.notices) {
-            setNotifications(res.data.notices.slice(0, 4)); // Only top 4 latest notices
+            setNotifications(res.data.notices.slice(0, 4));
           }
         })
-        .catch((err) => console.log('Error fetching notifications:', err));
+        .catch(() => {});
     }
   }, [user]);
 
   const items = menuConfig[user?.role] || menuConfig.student;
-  const currentPage = items.find((i) => location.pathname.startsWith(i.path))?.label || 'Dashboard';
+  const currentItem = items.find((i) => location.pathname.startsWith(i.path));
+  const currentPage = currentItem?.label || 'Dashboard';
+  const CurrentIcon = currentItem?.icon || LayoutDashboard;
 
   const toggleDark = () => {
     const next = !darkMode;
@@ -273,24 +314,22 @@ export default function DashboardLayout() {
     localStorage.setItem('theme', next ? 'dark' : 'light');
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   const initials = user?.name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+  const rc = roleConfig[user?.role] || roleConfig.student;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col border-r border-border/50 bg-card">
-        <SidebarContent items={items} />
+      <aside className="hidden lg:flex w-64 flex-col border-r border-white/5 bg-slate-950 shadow-2xl">
+        <SidebarContent items={items} user={user} />
       </aside>
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6 shrink-0 z-20" data-testid="topbar">
+        <header className="h-16 border-b border-border/40 bg-background/95 backdrop-blur-md flex items-center justify-between px-4 lg:px-6 shrink-0 z-20 shadow-sm" data-testid="topbar">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
@@ -298,88 +337,110 @@ export default function DashboardLayout() {
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <SidebarContent items={items} onItemClick={() => setMobileOpen(false)} />
+              <SheetContent side="left" className="w-64 p-0 border-r-0">
+                <SidebarContent items={items} user={user} onItemClick={() => setMobileOpen(false)} />
               </SheetContent>
             </Sheet>
-            <h2 className="text-lg font-semibold tracking-tight hidden sm:block" data-testid="page-title">{currentPage}</h2>
+            {/* Breadcrumb */}
+            <div className="hidden sm:flex items-center gap-2" data-testid="page-title">
+              <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${currentItem?.bg || 'bg-indigo-500/15'}`}>
+                <CurrentIcon className={`w-3.5 h-3.5 ${currentItem?.color || 'text-indigo-500'}`} strokeWidth={2} />
+              </span>
+              <h2 className="text-sm font-semibold text-foreground">{currentPage}</h2>
+            </div>
           </div>
 
           <GlobalSearch />
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleDark} className="h-9 w-9" data-testid="theme-toggle">
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="icon" onClick={toggleDark} className="h-9 w-9 rounded-xl" data-testid="theme-toggle">
+              {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4" />}
             </Button>
 
-            {/* Notification Bell Dropdown */}
+            {/* Notification Bell */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 relative" data-testid="notifications-btn">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative" data-testid="notifications-btn">
                   <Bell className="w-4 h-4" />
                   {notifications.length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-background" />
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel className="flex justify-between items-center py-2">
-                  <span>Notifications</span>
-                  <Badge variant="secondary" className="text-[10px]">{notifications.length} New</Badge>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                
-                <div className="max-h-[300px] overflow-y-auto">
+              <DropdownMenuContent align="end" className="w-80 rounded-2xl shadow-2xl border-border/50">
+                <div className="px-4 pt-4 pb-3 border-b border-border/40">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">Notifications</p>
+                    <Badge className="bg-red-500/10 text-red-600 border-red-200 text-[10px] font-semibold">{notifications.length} New</Badge>
+                  </div>
+                </div>
+                <div className="max-h-[280px] overflow-y-auto py-2">
                   {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">No pending notifications</div>
+                    <div className="p-6 text-center">
+                      <Bell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">All caught up!</p>
+                    </div>
                   ) : (
                     notifications.map((notif) => (
-                      <DropdownMenuItem key={notif.id} className="cursor-pointer p-3 focus:bg-muted flex flex-col items-start gap-1" onClick={() => navigate('/notices')}>
-                        <p className="text-sm font-medium leading-none">{notif.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{notif.description}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          {new Date(notif.created_at).toLocaleDateString()}
-                        </p>
+                      <DropdownMenuItem key={notif.id} className="cursor-pointer px-4 py-3 focus:bg-muted flex items-start gap-3" onClick={() => navigate('/notices')}>
+                        <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                          <Megaphone className="w-3.5 h-3.5 text-purple-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold truncate">{notif.title}</p>
+                          <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{notif.description}</p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-1">
+                            {new Date(notif.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </div>
                       </DropdownMenuItem>
                     ))
                   )}
                 </div>
-                
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer justify-center text-primary font-medium text-xs" onClick={() => navigate('/notices')}>
-                  View all
-                </DropdownMenuItem>
+                <div className="px-4 py-3 border-t border-border/40">
+                  <button className="w-full text-center text-xs text-primary font-semibold hover:underline" onClick={() => navigate('/notices')}>
+                    View all notices →
+                  </button>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
             {/* Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-9 gap-2 pl-2 pr-3" data-testid="profile-dropdown">
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
-                  </Avatar>
+                <Button variant="ghost" className="h-9 gap-2 pl-1.5 pr-3 rounded-xl hover:bg-muted" data-testid="profile-dropdown">
+                  <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${rc.gradient} flex items-center justify-center text-white text-[10px] font-black`}>
+                    {initials}
+                  </div>
                   <span className="text-sm font-medium hidden sm:inline">{user?.name?.split(' ')[0]}</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  <Badge variant="secondary" className="mt-1 text-[10px] capitalize">{user?.role}</Badge>
+              <DropdownMenuContent align="end" className="w-52 rounded-2xl shadow-2xl border-border/50">
+                <div className="px-3 py-3 border-b border-border/40">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${rc.gradient} flex items-center justify-center text-white text-xs font-black`}>
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{user?.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{user?.email}</p>
+                      <span className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${rc.badge} bg-opacity-20`}>{rc.label}</span>
+                    </div>
+                  </div>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="logout-btn">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </DropdownMenuItem>
+                <div className="py-1">
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer mx-2 rounded-lg font-medium text-sm" data-testid="logout-btn">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-6" data-testid="main-content">
+        <main className="flex-1 overflow-auto p-4 lg:p-6 bg-slate-50/50 dark:bg-background" data-testid="main-content">
           <Outlet />
         </main>
       </div>
