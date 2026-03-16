@@ -4,13 +4,8 @@ import api from "@/services/api";
 import { toast } from "sonner";
 import {
   GraduationCap, ArrowLeft, Camera, Upload, CheckCircle2, Loader2,
-  User, Mail, Phone, Building2, X, BookOpen, RefreshCw, CalendarDays, MapPin
+  User, Mail, Phone, Building2, X, RefreshCw, CalendarDays, MapPin
 } from "lucide-react";
-
-const ROLES = [
-  { value: "student", label: "Student", icon: GraduationCap, grad: "from-indigo-500 to-violet-600" },
-  { value: "faculty", label: "Faculty", icon: BookOpen, grad: "from-emerald-500 to-teal-600" },
-];
 
 const STEPS = ["Your Details", "College ID", "Review & Submit"];
 
@@ -24,16 +19,14 @@ export default function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const role = "student";
 
   // Form state
-  const [role, setRole] = useState("student");
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "",
     department: "", department_id: "",
     // student fields
     roll_number: "", semester: "1", date_of_birth: "", address: "",
-    // faculty fields
-    employee_id: "", designation: "",
   });
 
   // Camera state
@@ -106,8 +99,7 @@ export default function SignupPage() {
     if (!form.department_id.trim()) { toast.error("Department is required"); return false; }
     if (!form.date_of_birth) { toast.error("Date of birth is required"); return false; }
     if (!form.address.trim()) { toast.error("Address is required"); return false; }
-    if (role === "student" && !form.roll_number.trim()) { toast.error("Roll number is required"); return false; }
-    if (role === "faculty" && !form.employee_id.trim()) { toast.error("Employee ID is required"); return false; }
+    if (!form.roll_number.trim()) { toast.error("Roll number is required"); return false; }
     return true;
   };
 
@@ -137,8 +129,6 @@ export default function SignupPage() {
         semester: parseInt(form.semester, 10) || 1,
         date_of_birth: form.date_of_birth,
         address: form.address.trim(),
-        employee_id: form.employee_id.trim(),
-        designation: form.designation.trim(),
         id_image_base64: capturedImage || "",
       });
       setSubmitted(true);
@@ -159,12 +149,12 @@ export default function SignupPage() {
           </div>
           <h2 className="text-2xl font-black">Request Submitted!</h2>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Your signup request has been sent to the admin. They will review your details and College ID, then create your account. You'll receive your login credentials once approved.
+            Your student signup request has been sent to the admin. They will review your details and College ID, then approve your account. Once approved, your login credentials will be sent to your registered email address.
           </p>
           <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700">
             <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Submitted as</p>
             <p className="text-sm font-black mt-1">{form.full_name}</p>
-            <p className="text-xs text-muted-foreground">{form.email} · {role}</p>
+            <p className="text-xs text-muted-foreground">{form.email} · student</p>
           </div>
           <button
             onClick={() => navigate("/login")}
@@ -201,7 +191,7 @@ export default function SignupPage() {
           {/* Header */}
           <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-7 py-6">
             <h1 className="text-xl font-black text-white">Create Account</h1>
-            <p className="text-indigo-200 text-xs mt-1">Admin will review & activate your account</p>
+            <p className="text-indigo-200 text-xs mt-1">Student accounts are reviewed by admin before activation</p>
 
             {/* Step indicator */}
             <div className="flex items-center gap-2 mt-5">
@@ -222,23 +212,13 @@ export default function SignupPage() {
             {/* ── Step 0: Details ── */}
             {step === 0 && (
               <div className="space-y-4">
-                {/* Role selector */}
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-2">I am a</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {ROLES.map((r) => (
-                      <button
-                        key={r.value}
-                        onClick={() => setRole(r.value)}
-                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${role === r.value ? `border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20` : "border-border hover:border-indigo-300"}`}
-                      >
-                        <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${r.grad} flex items-center justify-center`}>
-                          <r.icon className="w-4 h-4 text-white" />
-                        </div>
-                        <span className="font-bold text-sm">{r.label}</span>
-                        {role === r.value && <CheckCircle2 className="w-4 h-4 text-indigo-500 ml-auto" />}
-                      </button>
-                    ))}
+                <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/20 p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-foreground">Student Signup Only</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Faculty credentials are created and shared separately by admin.</p>
                   </div>
                 </div>
 
@@ -280,24 +260,15 @@ export default function SignupPage() {
                     </div>
                   </div>
 
-                  {role === "student" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Roll Number *" value={form.roll_number} onChange={(v) => set("roll_number", v)} placeholder="e.g. CS21001" />
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">Semester *</label>
-                        <select value={form.semester} onChange={(e) => set("semester", e.target.value)} className="w-full h-10 rounded-xl border border-border/60 bg-background text-sm px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500">
-                          {[1,2,3,4,5,6,7,8].map((s) => <option key={s} value={s}>Semester {s}</option>)}
-                        </select>
-                      </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Roll Number *" value={form.roll_number} onChange={(v) => set("roll_number", v)} placeholder="e.g. CS21001" />
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">Semester *</label>
+                      <select value={form.semester} onChange={(e) => set("semester", e.target.value)} className="w-full h-10 rounded-xl border border-border/60 bg-background text-sm px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500">
+                        {[1,2,3,4,5,6,7,8].map((s) => <option key={s} value={s}>Semester {s}</option>)}
+                      </select>
                     </div>
-                  )}
-
-                  {role === "faculty" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Employee ID *" value={form.employee_id} onChange={(v) => set("employee_id", v)} placeholder="e.g. FAC001" />
-                      <Field label="Designation" value={form.designation} onChange={(v) => set("designation", v)} placeholder="e.g. Professor" />
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
             )}
@@ -390,12 +361,11 @@ export default function SignupPage() {
                   <Row label="Name" value={form.full_name} />
                   <Row label="Email" value={form.email} />
                   {form.phone && <Row label="Phone" value={form.phone} />}
-                  <Row label="Role" value={role.charAt(0).toUpperCase() + role.slice(1)} />
+                  <Row label="Role" value="Student" />
                   <Row label="Department" value={form.department} />
                   <Row label="Date of Birth" value={form.date_of_birth} />
                   <Row label="Address" value={form.address} />
-                  {role === "student" && <><Row label="Roll Number" value={form.roll_number} /><Row label="Semester" value={`Semester ${form.semester}`} /></>}
-                  {role === "faculty" && <><Row label="Employee ID" value={form.employee_id} />{form.designation && <Row label="Designation" value={form.designation} />}</>}
+                  <><Row label="Roll Number" value={form.roll_number} /><Row label="Semester" value={`Semester ${form.semester}`} /></>
                 </div>
 
                 {capturedImage && (
@@ -407,7 +377,7 @@ export default function SignupPage() {
 
                 <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
                   <p className="text-xs text-blue-700 dark:text-blue-300 font-medium leading-relaxed">
-                    By submitting, you confirm that all details are accurate. Admin will review your College ID and activate your account. You'll receive your login credentials after approval.
+                    By submitting, you confirm that all details are accurate. Admin will review your College ID and activate your student account. You'll receive your login credentials on your registered email after approval.
                   </p>
                 </div>
               </div>

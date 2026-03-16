@@ -14,6 +14,9 @@ from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import random
 import re
+import smtplib
+import ssl
+from email.message import EmailMessage
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -24,6 +27,14 @@ db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'smartcampus_jwt_secret_2024_xK9mP2vL8qR3')
 JWT_ALGORITHM = 'HS256'
+SMTP_HOST = os.environ.get('SMTP_HOST', '').strip()
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587') or 587)
+SMTP_USERNAME = os.environ.get('SMTP_USERNAME', '').strip()
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '').strip()
+SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL', SMTP_USERNAME).strip()
+SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', 'Smart Campus').strip()
+SMTP_USE_TLS = os.environ.get('SMTP_USE_TLS', 'true').strip().lower() not in {'0', 'false', 'no'}
+LOGIN_URL = os.environ.get('LOGIN_URL', os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/') + '/login').strip()
 
 app = FastAPI(title="Smart Campus Management System API")
 
@@ -102,6 +113,50 @@ async def generate_unique_enrollment_number(department_id: str = "") -> str:
         exists = await db.students.find_one({'enrollment_number': candidate}, {'_id': 1})
         if not exists:
             return candidate
+
+def send_account_credentials_email(recipient_email: str, full_name: str, password: str) -> tuple[bool, str]:
+    if not SMTP_HOST or not SMTP_USERNAME or not SMTP_PASSWORD or not SMTP_FROM_EMAIL:
+        logger.warning('SMTP not configured; skipping approval email for %s', recipient_email)
+        return False, 'SMTP is not configured'
+
+    message = EmailMessage()
+    message['Subject'] = 'Your Smart Campus Student Account Is Approved'
+    message['From'] = f'{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>' if SMTP_FROM_NAME else SMTP_FROM_EMAIL
+    message['To'] = recipient_email
+    message.set_content(
+        f"""Hello {full_name},
+
+Your student account request has been approved by the Smart Campus administration team.
+
+You can now log in using the following credentials:
+
+Email: {recipient_email}
+Password: {password}
+Login URL: {LOGIN_URL}
+
+For security, please log in and change your password after your first login.
+
+Regards,
+{SMTP_FROM_NAME}
+"""
+    )
+
+    try:
+        if SMTP_USE_TLS:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                server.ehlo()
+                server.starttls(context=ssl.create_default_context())
+                server.ehlo()
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(message)
+        else:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20, context=ssl.create_default_context()) as server:
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(message)
+        return True, ''
+    except Exception as exc:
+        logger.exception('Failed to send approval email to %s', recipient_email)
+        return False, str(exc)
 
 async def get_student_profile_by_user(user_id: str):
     student = await db.students.find_one({'user_id': user_id}, {'_id': 0})
@@ -1265,6 +1320,8 @@ async def update_support_message(msg_id: str, body: SupportMessageReply, user=De
 @api_router.post("/signup-requests")
 async def submit_signup_request(body: SignupRequestCreate):
     """Public endpoint — no auth required. Student/faculty submits signup request."""
+    if body.role != 'student':
+        raise HTTPException(status_code=400, detail='Only student signup is allowed. Faculty accounts are created by admin.')
     # Validate email uniqueness across users and pending requests
     existing_user = await db.users.find_one({'email': body.email})
     if existing_user:
@@ -1386,6 +1443,11 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
             }
             await db.faculty.insert_one(faculty_doc)
 
+        email_sent = False
+        email_error = ''
+        if req.get('role') == 'student':
+            email_sent, email_error = send_account_credentials_email(req['email'], req['full_name'], default_password)
+
         await db.signup_requests.update_one(
             {'id': req_id},
             {'$set': {
@@ -1395,10 +1457,20 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
                 'default_password': default_password,
                 'department_id': department_id,
                 'resolved_department_id': department_id,
+                'approval_email_sent': email_sent,
+                'approval_email_error': email_error,
+                'approval_email_sent_at': datetime.now(timezone.utc).isoformat() if email_sent else '',
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }}
         )
-        return {'success': True, 'message': f'Account created. Default password: {default_password}', 'default_password': default_password}
+        response_message = 'Account created and approval email sent successfully' if email_sent else 'Account created, but approval email could not be sent'
+        return {
+            'success': True,
+            'message': response_message,
+            'default_password': default_password,
+            'email_sent': email_sent,
+            'email_error': email_error,
+        }
     elif body.action == 'reject':
         await db.signup_requests.update_one(
             {'id': req_id},

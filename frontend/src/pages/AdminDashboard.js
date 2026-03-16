@@ -79,12 +79,20 @@ export default function AdminDashboard() {
     try {
       const res = await api.patch(`/signup-requests/${actionTarget.req.id}`, { action: actionTarget.action, remarks: actionRemarks });
       if (actionTarget.action === "approve" && res.data.default_password) {
-        alert(`Account created!\nDefault Password: ${res.data.default_password}\n\nShare this with the user.`);
+        if (res.data.email_sent) {
+          toast.success("Student account approved and login credentials emailed successfully");
+        } else {
+          alert(`Account created, but approval email could not be sent.\n\nDefault Password: ${res.data.default_password}\nEmail Error: ${res.data.email_error || "SMTP not configured"}\n\nShare this password manually with the student.`);
+        }
+      } else if (actionTarget.action === "reject") {
+        toast.success("Signup request rejected");
       }
       setActionTarget(null);
       setActionRemarks("");
       loadSignupReqs();
-    } catch {}
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to process signup request");
+    }
     setActionSending(false);
   };
 
