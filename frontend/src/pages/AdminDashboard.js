@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { Users, GraduationCap, Building2, CalendarCheck, MessageSquare, Megaphone, TrendingUp, ArrowUpRight, BarChart3, Zap, Headphones, CheckCircle2, Loader2, Send, X, UserCheck, UserX, Eye, BookOpen, RefreshCw } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 
@@ -46,6 +47,7 @@ export default function AdminDashboard() {
   const [actionTarget, setActionTarget] = useState(null); // { req, action: approve|reject }
   const [actionRemarks, setActionRemarks] = useState("");
   const [actionSending, setActionSending] = useState(false);
+  const [syncingProfiles, setSyncingProfiles] = useState(false);
   const navigate = useNavigate();
 
   const hour = new Date().getHours();
@@ -82,6 +84,20 @@ export default function AdminDashboard() {
       loadSignupReqs();
     } catch {}
     setActionSending(false);
+  };
+
+  const handleSyncApprovedProfiles = async () => {
+    setSyncingProfiles(true);
+    try {
+      const res = await api.post("/signup-requests/sync-approved-profiles");
+      const syncedCount = res.data?.synced_profiles ?? 0;
+      toast.success(syncedCount > 0 ? `${syncedCount} approved profile${syncedCount === 1 ? "" : "s"} repaired successfully` : "No missing approved profiles found");
+      loadSignupReqs(signupFilter);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to sync approved profiles");
+    } finally {
+      setSyncingProfiles(false);
+    }
   };
 
   const loadSupport = () => {
@@ -333,6 +349,15 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncApprovedProfiles}
+              disabled={syncingProfiles}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border bg-background hover:bg-muted text-[11px] font-bold transition-colors disabled:opacity-60"
+              title="Repair approved accounts missing student/faculty profiles"
+            >
+              {syncingProfiles ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+              Sync Approved Profiles
+            </button>
             {signupReqs.filter((r) => r.status === "pending").length > 0 && signupFilter === "pending" && (
               <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
                 <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
