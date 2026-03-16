@@ -1,10 +1,10 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { toast } from "sonner";
 import {
   GraduationCap, ArrowLeft, Camera, Upload, CheckCircle2, Loader2,
-  User, Mail, Phone, Building2, X, BookOpen, RefreshCw
+  User, Mail, Phone, Building2, X, BookOpen, RefreshCw, CalendarDays, MapPin
 } from "lucide-react";
 
 const ROLES = [
@@ -23,14 +23,15 @@ export default function SignupPage() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [departments, setDepartments] = useState([]);
 
   // Form state
   const [role, setRole] = useState("student");
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "",
-    department: "",
+    department: "", department_id: "",
     // student fields
-    roll_number: "", semester: "1",
+    roll_number: "", semester: "1", date_of_birth: "", address: "",
     // faculty fields
     employee_id: "", designation: "",
   });
@@ -42,6 +43,10 @@ export default function SignupPage() {
   const fileInputRef = useRef(null);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    api.get("/public/departments").then((res) => setDepartments(res.data.departments || [])).catch(() => {});
+  }, []);
 
   // ── Camera helpers ──────────────────────────────────────────────────────────
   const startCamera = async () => {
@@ -98,7 +103,9 @@ export default function SignupPage() {
   const validateStep0 = () => {
     if (!form.full_name.trim()) { toast.error("Full name is required"); return false; }
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { toast.error("Valid email is required"); return false; }
-    if (!form.department.trim()) { toast.error("Department is required"); return false; }
+    if (!form.department_id.trim()) { toast.error("Department is required"); return false; }
+    if (!form.date_of_birth) { toast.error("Date of birth is required"); return false; }
+    if (!form.address.trim()) { toast.error("Address is required"); return false; }
     if (role === "student" && !form.roll_number.trim()) { toast.error("Roll number is required"); return false; }
     if (role === "faculty" && !form.employee_id.trim()) { toast.error("Employee ID is required"); return false; }
     return true;
@@ -118,14 +125,18 @@ export default function SignupPage() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      const selectedDepartment = departments.find((dept) => dept.id === form.department_id);
       await api.post("/signup-requests", {
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
         role,
-        department: form.department.trim(),
+        department: selectedDepartment?.name || form.department || "",
+        department_id: form.department_id,
         roll_number: form.roll_number.trim(),
         semester: parseInt(form.semester, 10) || 1,
+        date_of_birth: form.date_of_birth,
+        address: form.address.trim(),
         employee_id: form.employee_id.trim(),
         designation: form.designation.trim(),
         id_image_base64: capturedImage || "",
@@ -235,7 +246,39 @@ export default function SignupPage() {
                   <Field icon={User} label="Full Name *" value={form.full_name} onChange={(v) => set("full_name", v)} placeholder="e.g. Rahul Sharma" />
                   <Field icon={Mail} label="Email Address *" value={form.email} onChange={(v) => set("email", v)} placeholder="your@email.com" type="email" />
                   <Field icon={Phone} label="Phone Number" value={form.phone} onChange={(v) => set("phone", v)} placeholder="+91 98765 43210" />
-                  <Field icon={Building2} label="Department *" value={form.department} onChange={(v) => set("department", v)} placeholder="e.g. Computer Science" />
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">Department *</label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
+                      <select
+                        value={form.department_id}
+                        onChange={(e) => {
+                          const dept = departments.find((item) => item.id === e.target.value);
+                          setForm((prev) => ({ ...prev, department_id: e.target.value, department: dept?.name || "" }));
+                        }}
+                        className="w-full h-10 rounded-xl border border-border/60 bg-background text-sm pl-9 pr-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
+                      >
+                        <option value="">Select department</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <Field icon={CalendarDays} label="Date of Birth *" value={form.date_of_birth} onChange={(v) => set("date_of_birth", v)} type="date" />
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">Address *</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground/60" />
+                      <textarea
+                        value={form.address}
+                        onChange={(e) => set("address", e.target.value)}
+                        placeholder="Enter your complete address"
+                        rows={3}
+                        className="w-full rounded-xl border border-border/60 bg-background text-sm pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all placeholder:text-muted-foreground/60 resize-none"
+                      />
+                    </div>
+                  </div>
 
                   {role === "student" && (
                     <div className="grid grid-cols-2 gap-3">
@@ -349,6 +392,8 @@ export default function SignupPage() {
                   {form.phone && <Row label="Phone" value={form.phone} />}
                   <Row label="Role" value={role.charAt(0).toUpperCase() + role.slice(1)} />
                   <Row label="Department" value={form.department} />
+                  <Row label="Date of Birth" value={form.date_of_birth} />
+                  <Row label="Address" value={form.address} />
                   {role === "student" && <><Row label="Roll Number" value={form.roll_number} /><Row label="Semester" value={`Semester ${form.semester}`} /></>}
                   {role === "faculty" && <><Row label="Employee ID" value={form.employee_id} />{form.designation && <Row label="Designation" value={form.designation} />}</>}
                 </div>

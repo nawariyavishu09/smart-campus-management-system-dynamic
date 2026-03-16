@@ -72,20 +72,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail='Invalid token')
 
-async def get_student_profile_by_user(user_id: str):
-    return await db.students.find_one({'user_id': user_id}, {'_id': 0})
-
-async def get_faculty_profile_by_user(user_id: str):
-    return await db.faculty.find_one({'user_id': user_id}, {'_id': 0})
-
-async def resolve_department_id(department_value: str) -> str:
+async def find_department_record(department_value: str):
     if not department_value:
-        return ""
+        return None
     val = department_value.strip()
     if not val:
-        return ""
+        return None
 
-    dept = await db.departments.find_one(
+    return await db.departments.find_one(
         {
             '$or': [
                 {'id': val},
@@ -93,8 +87,48 @@ async def resolve_department_id(department_value: str) -> str:
                 {'name': {'$regex': f'^{re.escape(val)}$', '$options': 'i'}},
             ]
         },
-        {'_id': 0, 'id': 1}
+        {'_id': 0}
     )
+
+async def generate_unique_enrollment_number(department_id: str = "") -> str:
+    dept_code = 'GEN'
+    if department_id:
+        dept = await db.departments.find_one({'id': department_id}, {'_id': 0, 'code': 1})
+        if dept and dept.get('code'):
+            dept_code = re.sub(r'[^A-Z0-9]', '', dept['code'].upper())[:4] or 'GEN'
+
+    while True:
+        candidate = f"EN{datetime.now(timezone.utc).year}{dept_code}{random.randint(10000, 99999)}"
+        exists = await db.students.find_one({'enrollment_number': candidate}, {'_id': 1})
+        if not exists:
+            return candidate
+
+async def get_student_profile_by_user(user_id: str):
+    student = await db.students.find_one({'user_id': user_id}, {'_id': 0})
+    if not student:
+        return None
+
+    updates = {}
+    if not student.get('enrollment_number'):
+        updates['enrollment_number'] = await generate_unique_enrollment_number(student.get('department_id', ''))
+
+    if not student.get('department_id'):
+        linked_user = await db.users.find_one({'id': user_id}, {'_id': 0, 'department_id': 1, 'department': 1})
+        resolved_department_id = (linked_user or {}).get('department_id') or await resolve_department_id((linked_user or {}).get('department', ''))
+        if resolved_department_id:
+            updates['department_id'] = resolved_department_id
+
+    if updates:
+        await db.students.update_one({'id': student['id']}, {'$set': updates})
+        student.update(updates)
+
+    return student
+
+async def get_faculty_profile_by_user(user_id: str):
+    return await db.faculty.find_one({'user_id': user_id}, {'_id': 0})
+
+async def resolve_department_id(department_value: str) -> str:
+    dept = await find_department_record(department_value)
     return dept['id'] if dept else ""
 
 # ─── Pydantic Models ───────────────────────────────────────────────────────────
@@ -178,8 +212,11 @@ class SignupRequestCreate(BaseModel):
     phone: str = ""
     role: str = "student"          # student | faculty
     department: str = ""
+    department_id: str = ""
     roll_number: str = ""          # for students
     semester: int = 1              # for students
+    date_of_birth: str = ""
+    address: str = ""
     employee_id: str = ""          # for faculty
     designation: str = ""          # for faculty
     id_image_base64: str = ""      # college ID photo (base64)
@@ -279,14 +316,19 @@ async def create_student(data: StudentCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail='Not authorized')
     student_id = str(uuid.uuid4())
     user_id = str(uuid.uuid4())
+    payload = data.model_dump()
+    if not payload.get('enrollment_number'):
+        payload['enrollment_number'] = await generate_unique_enrollment_number(payload.get('department_id', ''))
+    if not payload.get('admission_date'):
+        payload['admission_date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     
     await db.users.insert_one({
         'id': user_id, 'email': data.email,
         'password_hash': hash_pw('student123'),
-        'name': data.full_name, 'role': 'student'
+        'name': data.full_name, 'role': 'student', 'department_id': payload.get('department_id', '')
     })
     
-    student = {'id': student_id, 'user_id': user_id, **data.model_dump(), 'created_at': datetime.now(timezone.utc).isoformat()}
+    student = {'id': student_id, 'user_id': user_id, **payload, 'created_at': datetime.now(timezone.utc).isoformat()}
     await db.students.insert_one(student)
     student.pop('_id', None)
     return student
@@ -308,13 +350,19 @@ async def update_student(student_id: str, data: StudentCreate, user=Depends(get_
         if data.department_id != faculty.get('department_id'):
             raise HTTPException(status_code=403, detail='Faculty cannot move student to another department')
     
-    result = await db.students.update_one({'id': student_id}, {'$set': data.model_dump()})
+    payload = data.model_dump()
+    existing_before_update = await db.students.find_one({'id': student_id}, {'_id': 0})
+    if not existing_before_update:
+        raise HTTPException(status_code=404, detail='Student not found')
+    if not payload.get('enrollment_number'):
+        payload['enrollment_number'] = existing_before_update.get('enrollment_number') or await generate_unique_enrollment_number(payload.get('department_id', existing_before_update.get('department_id', '')))
+    result = await db.students.update_one({'id': student_id}, {'$set': payload})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail='Student not found')
         
     updated = await db.students.find_one({'id': student_id}, {'_id': 0})
     if updated.get('user_id'):
-        await db.users.update_one({'id': updated.get('user_id')}, {'$set': {'name': data.full_name, 'email': data.email}})
+        await db.users.update_one({'id': updated.get('user_id')}, {'$set': {'name': data.full_name, 'email': data.email, 'department_id': updated.get('department_id', '')}})
     return updated
 
 @api_router.delete("/students/{student_id}")
@@ -409,6 +457,11 @@ async def delete_faculty(faculty_id: str, user=Depends(get_current_user)):
 @api_router.get("/departments")
 async def get_departments(user=Depends(get_current_user)):
     depts = await db.departments.find({}, {'_id': 0}).to_list(50)
+    return {'departments': depts}
+
+@api_router.get("/public/departments")
+async def get_public_departments():
+    depts = await db.departments.find({}, {'_id': 0}).to_list(100)
     return {'departments': depts}
 
 @api_router.post("/departments")
@@ -1226,8 +1279,11 @@ async def submit_signup_request(body: SignupRequestCreate):
         'phone': body.phone,
         'role': body.role,
         'department': body.department,
+        'department_id': body.department_id,
         'roll_number': body.roll_number,
         'semester': body.semester,
+        'date_of_birth': body.date_of_birth,
+        'address': body.address,
         'employee_id': body.employee_id,
         'designation': body.designation,
         'id_image_base64': body.id_image_base64,
@@ -1278,7 +1334,11 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
     if body.action == 'approve':
         # Create auth user + role profile document so dashboards and management screens can find the record.
         default_password = f"campus@{req['full_name'].split()[0].lower()}123"
-        department_id = await resolve_department_id(req.get('department', ''))
+        department_id = req.get('department_id', '') or req.get('resolved_department_id', '') or await resolve_department_id(req.get('department', ''))
+        if department_id:
+            department_record = await db.departments.find_one({'id': department_id}, {'_id': 0, 'name': 1})
+            if department_record:
+                req['department'] = department_record.get('name', req.get('department', ''))
         new_user = {
             'id': str(uuid.uuid4()),
             'name': req['full_name'],
@@ -1298,12 +1358,12 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
                 'user_id': new_user['id'],
                 'full_name': req.get('full_name', ''),
                 'roll_number': req.get('roll_number', '') or f"ROLL-{random.randint(10000, 99999)}",
-                'enrollment_number': '',
+                'enrollment_number': await generate_unique_enrollment_number(department_id),
                 'email': req.get('email', ''),
                 'phone': req.get('phone', ''),
                 'gender': 'Male',
-                'date_of_birth': '',
-                'address': '',
+                'date_of_birth': req.get('date_of_birth', ''),
+                'address': req.get('address', ''),
                 'department_id': department_id,
                 'semester': max(1, int(req.get('semester', 1) or 1)),
                 'section': 'A',
@@ -1333,6 +1393,7 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
                 'admin_remarks': body.remarks,
                 'approved_user_id': new_user['id'],
                 'default_password': default_password,
+                'department_id': department_id,
                 'resolved_department_id': department_id,
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }}
@@ -1349,7 +1410,7 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
 
 @api_router.post("/signup-requests/sync-approved-profiles")
 async def sync_approved_signup_profiles(user=Depends(get_current_user)):
-    """Admin utility: create missing student/faculty profiles for previously approved signup requests."""
+    """Admin utility: create or repair student/faculty profiles for approved signup requests."""
     if user.get('role') != 'admin':
         raise HTTPException(status_code=403, detail='Admin access required')
 
@@ -1366,23 +1427,48 @@ async def sync_approved_signup_profiles(user=Depends(get_current_user)):
         if not linked_user:
             continue
 
-        department_id = await resolve_department_id(req.get('department', ''))
+        department_id = req.get('department_id', '') or req.get('resolved_department_id', '') or await resolve_department_id(req.get('department', ''))
+        user_updates = {}
+        if department_id and linked_user.get('department_id') != department_id:
+            user_updates['department_id'] = department_id
+        if req.get('department') and linked_user.get('department') != req.get('department'):
+            user_updates['department'] = req.get('department')
+        if user_updates:
+            await db.users.update_one({'id': linked_user['id']}, {'$set': user_updates})
 
         if req.get('role') == 'student':
-            existing = await db.students.find_one({'user_id': linked_user['id']}, {'_id': 0, 'id': 1})
+            existing = await db.students.find_one({'user_id': linked_user['id']}, {'_id': 0})
             if existing:
+                student_updates = {}
+                if not existing.get('enrollment_number'):
+                    student_updates['enrollment_number'] = await generate_unique_enrollment_number(existing.get('department_id', '') or department_id)
+                if not existing.get('roll_number') and req.get('roll_number'):
+                    student_updates['roll_number'] = req.get('roll_number')
+                if not existing.get('date_of_birth') and req.get('date_of_birth'):
+                    student_updates['date_of_birth'] = req.get('date_of_birth')
+                if not existing.get('address') and req.get('address'):
+                    student_updates['address'] = req.get('address')
+                if not existing.get('department_id') and department_id:
+                    student_updates['department_id'] = department_id
+                if not existing.get('phone') and req.get('phone'):
+                    student_updates['phone'] = req.get('phone')
+                if not existing.get('email') and linked_user.get('email'):
+                    student_updates['email'] = linked_user.get('email')
+                if student_updates:
+                    await db.students.update_one({'id': existing['id']}, {'$set': student_updates})
+                    synced += 1
                 continue
             await db.students.insert_one({
                 'id': str(uuid.uuid4()),
                 'user_id': linked_user['id'],
                 'full_name': req.get('full_name', linked_user.get('name', '')),
                 'roll_number': req.get('roll_number', '') or f"ROLL-{random.randint(10000, 99999)}",
-                'enrollment_number': '',
+                'enrollment_number': await generate_unique_enrollment_number(department_id),
                 'email': linked_user.get('email', ''),
                 'phone': req.get('phone', ''),
                 'gender': 'Male',
-                'date_of_birth': '',
-                'address': '',
+                'date_of_birth': req.get('date_of_birth', ''),
+                'address': req.get('address', ''),
                 'department_id': department_id,
                 'semester': max(1, int(req.get('semester', 1) or 1)),
                 'section': 'A',
@@ -1390,7 +1476,6 @@ async def sync_approved_signup_profiles(user=Depends(get_current_user)):
                 'status': 'active',
                 'created_at': datetime.now(timezone.utc).isoformat(),
             })
-            await db.users.update_one({'id': linked_user['id']}, {'$set': {'department_id': department_id}})
             synced += 1
         elif req.get('role') == 'faculty':
             existing = await db.faculty.find_one({'user_id': linked_user['id']}, {'_id': 0, 'id': 1})
