@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, GraduationCap, Building2, CalendarCheck, MessageSquare, Megaphone, TrendingUp, ArrowUpRight, BarChart3, Zap, Headphones, CheckCircle2, Loader2, Send, X } from "lucide-react";
+import { Users, GraduationCap, Building2, CalendarCheck, MessageSquare, Megaphone, TrendingUp, ArrowUpRight, BarChart3, Zap, Headphones, CheckCircle2, Loader2, Send, X, UserCheck, UserX, Eye, BookOpen, RefreshCw } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 
 const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#a855f7", "#06b6d4"];
@@ -35,26 +35,54 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [supportMsgs, setSupportMsgs] = useState([]);
   const [supportLoading, setSupportLoading] = useState(true);
-  const [replyTarget, setReplyTarget] = useState(null); // { id, sender_name }
+  const [replyTarget, setReplyTarget] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [replySending, setReplySending] = useState(false);
+  // Signup requests
+  const [signupReqs, setSignupReqs] = useState([]);
+  const [signupLoading, setSignupLoading] = useState(true);
+  const [signupFilter, setSignupFilter] = useState("pending");
+  const [viewReq, setViewReq] = useState(null);       // full detail for ID preview
+  const [actionTarget, setActionTarget] = useState(null); // { req, action: approve|reject }
+  const [actionRemarks, setActionRemarks] = useState("");
+  const [actionSending, setActionSending] = useState(false);
   const navigate = useNavigate();
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
   useEffect(() => {
-    api
-      .get("/dashboard/stats")
-      .then((res) => setStats(res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-    api
-      .get("/support-messages")
-      .then((res) => setSupportMsgs(res.data.messages || []))
-      .catch(() => {})
-      .finally(() => setSupportLoading(false));
+    api.get("/dashboard/stats").then((res) => setStats(res.data)).catch(() => {}).finally(() => setLoading(false));
+    api.get("/support-messages").then((res) => setSupportMsgs(res.data.messages || [])).catch(() => {}).finally(() => setSupportLoading(false));
+    api.get("/signup-requests?status=pending").then((res) => setSignupReqs(res.data.requests || [])).catch(() => {}).finally(() => setSignupLoading(false));
   }, []);
+
+  const loadSignupReqs = (status = signupFilter) => {
+    setSignupLoading(true);
+    api.get(`/signup-requests?status=${status}`).then((res) => setSignupReqs(res.data.requests || [])).catch(() => {}).finally(() => setSignupLoading(false));
+  };
+
+  const loadReqDetail = async (id) => {
+    try {
+      const res = await api.get(`/signup-requests/${id}`);
+      setViewReq(res.data);
+    } catch {}
+  };
+
+  const handleSignupAction = async () => {
+    if (!actionTarget) return;
+    setActionSending(true);
+    try {
+      const res = await api.patch(`/signup-requests/${actionTarget.req.id}`, { action: actionTarget.action, remarks: actionRemarks });
+      if (actionTarget.action === "approve" && res.data.default_password) {
+        alert(`Account created!\nDefault Password: ${res.data.default_password}\n\nShare this with the user.`);
+      }
+      setActionTarget(null);
+      setActionRemarks("");
+      loadSignupReqs();
+    } catch {}
+    setActionSending(false);
+  };
 
   const loadSupport = () => {
     setSupportLoading(true);
@@ -292,6 +320,86 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* ── Signup Requests ── */}
+      <div className="pro-card bg-card overflow-hidden" data-testid="signup-requests">
+        <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+              <UserCheck className="w-3.5 h-3.5 text-teal-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">Account Signup Requests</h3>
+              <p className="text-[11px] text-muted-foreground">Review & activate new user accounts</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {signupReqs.filter((r) => r.status === "pending").length > 0 && signupFilter === "pending" && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                {signupReqs.length} Pending
+              </span>
+            )}
+            {/* Filter tabs */}
+            <div className="flex rounded-xl border border-border overflow-hidden text-[11px] font-bold">
+              {["pending", "approved", "rejected"].map((f) => (
+                <button key={f} onClick={() => { setSignupFilter(f); loadSignupReqs(f); }} className={`px-3 py-1.5 capitalize transition-colors ${signupFilter === f ? "bg-teal-600 text-white" : "hover:bg-muted"}`}>{f}</button>
+              ))}
+            </div>
+            <button onClick={() => loadSignupReqs(signupFilter)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <RefreshCw className={`w-3.5 h-3.5 ${signupLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+        <div className="divide-y divide-border/40 max-h-[500px] overflow-y-auto">
+          {signupLoading ? (
+            <div className="py-10 text-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground/30 mx-auto" /></div>
+          ) : signupReqs.length === 0 ? (
+            <div className="py-12 text-center">
+              <UserCheck className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-sm font-medium text-muted-foreground capitalize">No {signupFilter} requests</p>
+            </div>
+          ) : (
+            signupReqs.map((r) => (
+              <div key={r.id} className="flex items-start gap-4 px-6 py-4 hover:bg-muted/30 transition-colors" data-testid={`signup-req-${r.id}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0 bg-gradient-to-br ${r.role === "faculty" ? "from-emerald-500 to-teal-600" : "from-indigo-500 to-violet-600"}`}>
+                  {r.full_name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?"}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold">{r.full_name}</p>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${r.role === "faculty" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"}`}>{r.role}</span>
+                    {r.has_id_image && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">ID Attached</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{r.email}{r.phone ? ` · ${r.phone}` : ""}</p>
+                  <p className="text-xs text-muted-foreground">{r.department}{r.role === "student" ? ` · Roll: ${r.roll_number} · Sem ${r.semester}` : r.employee_id ? ` · ${r.employee_id}` : ""}</p>
+                  <p className="text-[10px] text-muted-foreground/50">{new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                <div className="shrink-0 flex flex-col items-end gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${r.status === "approved" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : r.status === "rejected" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{r.status}</span>
+                  <div className="flex gap-1.5">
+                    {r.has_id_image && (
+                      <button onClick={() => loadReqDetail(r.id)} className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 hover:bg-blue-200 transition-colors" title="View ID">
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {r.status === "pending" && (
+                      <>
+                        <button onClick={() => { setActionTarget({ req: r, action: "approve" }); setActionRemarks(""); }} className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 hover:bg-emerald-200 transition-colors" title="Approve">
+                          <UserCheck className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => { setActionTarget({ req: r, action: "reject" }); setActionRemarks(""); }} className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 hover:bg-red-200 transition-colors" title="Reject">
+                          <UserX className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* ── Support Inbox ── */}
       <div className="pro-card bg-card overflow-hidden" data-testid="support-inbox">
         <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between">
@@ -408,6 +516,84 @@ export default function AdminDashboard() {
                 className="w-full h-10 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all"
               >
                 {replySending ? <><Loader2 className="w-4 h-4 animate-spin" />Sending...</> : <><Send className="w-4 h-4" />Send Reply &amp; Resolve</>}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ID Preview Modal */}
+      {viewReq && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) setViewReq(null); }}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-border/50 w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+              <div>
+                <p className="font-black text-sm">College ID — {viewReq.full_name}</p>
+                <p className="text-[11px] text-muted-foreground capitalize">{viewReq.role} · {viewReq.email}</p>
+              </div>
+              <button onClick={() => setViewReq(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              {viewReq.id_image_base64 ? (
+                <img src={viewReq.id_image_base64} alt="College ID" className="w-full rounded-xl border border-border/50 max-h-80 object-contain bg-slate-100 dark:bg-slate-800" />
+              ) : (
+                <div className="py-10 text-center text-muted-foreground text-sm">No ID image provided</div>
+              )}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[["Name", viewReq.full_name], ["Email", viewReq.email], ["Role", viewReq.role], ["Department", viewReq.department], viewReq.roll_number && ["Roll No.", viewReq.roll_number], viewReq.employee_id && ["Employee ID", viewReq.employee_id]].filter(Boolean).map(([l, v]) => (
+                  <div key={l} className="bg-muted/50 rounded-lg px-3 py-2">
+                    <p className="text-muted-foreground font-semibold">{l}</p>
+                    <p className="font-bold truncate">{v}</p>
+                  </div>
+                ))}
+              </div>
+              {viewReq.status === "pending" && (
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => { setViewReq(null); setActionTarget({ req: viewReq, action: "approve" }); setActionRemarks(""); }} className="flex-1 h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+                    <UserCheck className="w-4 h-4" /> Approve
+                  </button>
+                  <button onClick={() => { setViewReq(null); setActionTarget({ req: viewReq, action: "reject" }); setActionRemarks(""); }} className="flex-1 h-10 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+                    <UserX className="w-4 h-4" /> Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Approve / Reject Confirmation Modal */}
+      {actionTarget && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) setActionTarget(null); }}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-border/50 w-full max-w-md overflow-hidden">
+            <div className={`px-5 py-4 border-b border-border/40 flex items-center gap-3 ${actionTarget.action === "approve" ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-red-50 dark:bg-red-900/20"}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${actionTarget.action === "approve" ? "bg-emerald-100 dark:bg-emerald-800/50" : "bg-red-100 dark:bg-red-800/50"}`}>
+                {actionTarget.action === "approve" ? <UserCheck className="w-5 h-5 text-emerald-600" /> : <UserX className="w-5 h-5 text-red-600" />}
+              </div>
+              <div>
+                <p className="font-black text-sm capitalize">{actionTarget.action} Account Request</p>
+                <p className="text-[11px] text-muted-foreground">{actionTarget.req.full_name} · {actionTarget.req.email}</p>
+              </div>
+              <button onClick={() => setActionTarget(null)} className="ml-auto text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              {actionTarget.action === "approve" && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                  A new user account will be created with a default password. Share the password with the user so they can log in.
+                </div>
+              )}
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">Remarks (optional)</label>
+                <textarea value={actionRemarks} onChange={(e) => setActionRemarks(e.target.value)} rows={3} autoFocus placeholder={actionTarget.action === "approve" ? "e.g. Welcome! Your account is now active." : "e.g. ID not matching records."} className="w-full rounded-xl border border-border/60 bg-background text-sm p-3 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all" />
+              </div>
+              <button
+                onClick={handleSignupAction}
+                disabled={actionSending}
+                className={`w-full h-10 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all bg-gradient-to-r ${actionTarget.action === "approve" ? "from-emerald-500 to-teal-600" : "from-red-500 to-rose-600"}`}
+              >
+                {actionSending ? <><Loader2 className="w-4 h-4 animate-spin" />Processing...</> : <>{actionTarget.action === "approve" ? <><UserCheck className="w-4 h-4" />Approve &amp; Create Account</> : <><UserX className="w-4 h-4" />Reject Request</>}</>}
               </button>
             </div>
           </div>

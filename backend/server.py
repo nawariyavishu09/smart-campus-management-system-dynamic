@@ -147,6 +147,22 @@ class SupportMessageReply(BaseModel):
     status: str = "resolved"
     admin_reply: str = ""
 
+class SignupRequestCreate(BaseModel):
+    full_name: str
+    email: str
+    phone: str = ""
+    role: str = "student"          # student | faculty
+    department: str = ""
+    roll_number: str = ""          # for students
+    semester: int = 1              # for students
+    employee_id: str = ""          # for faculty
+    designation: str = ""          # for faculty
+    id_image_base64: str = ""      # college ID photo (base64)
+
+class SignupRequestAction(BaseModel):
+    action: str                    # "approve" | "reject"
+    remarks: str = ""
+
 def calc_grade(pct):
     if pct >= 90: return 'A+'
     if pct >= 80: return 'A'
@@ -982,6 +998,102 @@ async def update_support_message(msg_id: str, body: SupportMessageReply, user=De
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail='Message not found')
     return {'success': True}
+
+# ─── SIGNUP REQUEST ROUTES ───────────────────────────────────────────────────────
+
+@api_router.post("/signup-requests")
+async def submit_signup_request(body: SignupRequestCreate):
+    """Public endpoint — no auth required. Student/faculty submits signup request."""
+    # Validate email uniqueness across users and pending requests
+    existing_user = await db.users.find_one({'email': body.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail='An account with this email already exists')
+    existing_req = await db.signup_requests.find_one({'email': body.email, 'status': 'pending'})
+    if existing_req:
+        raise HTTPException(status_code=400, detail='A signup request for this email is already pending')
+    doc = {
+        'id': str(uuid.uuid4()),
+        'full_name': body.full_name,
+        'email': body.email,
+        'phone': body.phone,
+        'role': body.role,
+        'department': body.department,
+        'roll_number': body.roll_number,
+        'semester': body.semester,
+        'employee_id': body.employee_id,
+        'designation': body.designation,
+        'id_image_base64': body.id_image_base64,
+        'status': 'pending',  # pending | approved | rejected
+        'admin_remarks': '',
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+    }
+    await db.signup_requests.insert_one(doc)
+    return {'success': True, 'message': 'Your request has been submitted. Admin will review and activate your account.'}
+
+@api_router.get("/signup-requests")
+async def get_signup_requests(user=Depends(get_current_user), status: str = ""):
+    """Admin only — get all signup requests."""
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail='Admin access required')
+    query = {}
+    if status:
+        query['status'] = status
+    reqs = await db.signup_requests.find(query, {'_id': 0}).sort('created_at', -1).limit(100).to_list(100)
+    # Strip base64 image from list view for performance
+    for r in reqs:
+        r['has_id_image'] = bool(r.get('id_image_base64'))
+        r.pop('id_image_base64', None)
+    return {'requests': reqs, 'total': len(reqs)}
+
+@api_router.get("/signup-requests/{req_id}")
+async def get_signup_request_detail(req_id: str, user=Depends(get_current_user)):
+    """Admin only — get full record including ID image."""
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail='Admin access required')
+    req = await db.signup_requests.find_one({'id': req_id}, {'_id': 0})
+    if not req:
+        raise HTTPException(status_code=404, detail='Request not found')
+    return req
+
+@api_router.patch("/signup-requests/{req_id}")
+async def action_signup_request(req_id: str, body: SignupRequestAction, user=Depends(get_current_user)):
+    """Admin only — approve or reject a signup request."""
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail='Admin access required')
+    req = await db.signup_requests.find_one({'id': req_id}, {'_id': 0})
+    if not req:
+        raise HTTPException(status_code=404, detail='Request not found')
+    if req['status'] != 'pending':
+        raise HTTPException(status_code=400, detail='Request already processed')
+
+    if body.action == 'approve':
+        # Create the user account with a default password (they'll need to contact admin to get it, or email could be sent)
+        default_password = f"campus@{req['full_name'].split()[0].lower()}123"
+        new_user = {
+            'id': str(uuid.uuid4()),
+            'name': req['full_name'],
+            'email': req['email'],
+            'role': req['role'],
+            'password_hash': hash_pw(default_password),
+            'department': req.get('department', ''),
+            'phone': req.get('phone', ''),
+            'created_at': datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(new_user)
+        await db.signup_requests.update_one(
+            {'id': req_id},
+            {'$set': {'status': 'approved', 'admin_remarks': body.remarks, 'approved_user_id': new_user['id'], 'default_password': default_password, 'updated_at': datetime.now(timezone.utc).isoformat()}}
+        )
+        return {'success': True, 'message': f'Account created. Default password: {default_password}', 'default_password': default_password}
+    elif body.action == 'reject':
+        await db.signup_requests.update_one(
+            {'id': req_id},
+            {'$set': {'status': 'rejected', 'admin_remarks': body.remarks, 'updated_at': datetime.now(timezone.utc).isoformat()}}
+        )
+        return {'success': True, 'message': 'Request rejected'}
+    else:
+        raise HTTPException(status_code=400, detail='Invalid action. Use approve or reject')
 
 # ─── APP CONFIG ─────────────────────────────────────────────────────────────────
 

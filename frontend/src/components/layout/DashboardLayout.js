@@ -315,7 +315,7 @@ export default function DashboardLayout() {
     localStorage.setItem('theme', next ? 'dark' : 'light');
   };
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = () => { logout(); navigate('/'); };
 
   const initials = user?.name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
   const rc = roleConfig[user?.role] || roleConfig.student;
