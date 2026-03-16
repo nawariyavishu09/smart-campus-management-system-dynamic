@@ -78,6 +78,25 @@ async def get_student_profile_by_user(user_id: str):
 async def get_faculty_profile_by_user(user_id: str):
     return await db.faculty.find_one({'user_id': user_id}, {'_id': 0})
 
+async def resolve_department_id(department_value: str) -> str:
+    if not department_value:
+        return ""
+    val = department_value.strip()
+    if not val:
+        return ""
+
+    dept = await db.departments.find_one(
+        {
+            '$or': [
+                {'id': val},
+                {'code': {'$regex': f'^{re.escape(val)}$', '$options': 'i'}},
+                {'name': {'$regex': f'^{re.escape(val)}$', '$options': 'i'}},
+            ]
+        },
+        {'_id': 0, 'id': 1}
+    )
+    return dept['id'] if dept else ""
+
 # ─── Pydantic Models ───────────────────────────────────────────────────────────
 
 class LoginRequest(BaseModel):
@@ -1257,8 +1276,9 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
         raise HTTPException(status_code=400, detail='Request already processed')
 
     if body.action == 'approve':
-        # Create the user account with a default password (they'll need to contact admin to get it, or email could be sent)
+        # Create auth user + role profile document so dashboards and management screens can find the record.
         default_password = f"campus@{req['full_name'].split()[0].lower()}123"
+        department_id = await resolve_department_id(req.get('department', ''))
         new_user = {
             'id': str(uuid.uuid4()),
             'name': req['full_name'],
@@ -1266,13 +1286,56 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
             'role': req['role'],
             'password_hash': hash_pw(default_password),
             'department': req.get('department', ''),
+            'department_id': department_id,
             'phone': req.get('phone', ''),
             'created_at': datetime.now(timezone.utc).isoformat(),
         }
         await db.users.insert_one(new_user)
+
+        if req.get('role') == 'student':
+            student_doc = {
+                'id': str(uuid.uuid4()),
+                'user_id': new_user['id'],
+                'full_name': req.get('full_name', ''),
+                'roll_number': req.get('roll_number', '') or f"ROLL-{random.randint(10000, 99999)}",
+                'enrollment_number': '',
+                'email': req.get('email', ''),
+                'phone': req.get('phone', ''),
+                'gender': 'Male',
+                'date_of_birth': '',
+                'address': '',
+                'department_id': department_id,
+                'semester': max(1, int(req.get('semester', 1) or 1)),
+                'section': 'A',
+                'admission_date': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                'status': 'active',
+                'created_at': datetime.now(timezone.utc).isoformat(),
+            }
+            await db.students.insert_one(student_doc)
+        elif req.get('role') == 'faculty':
+            faculty_doc = {
+                'id': str(uuid.uuid4()),
+                'user_id': new_user['id'],
+                'name': req.get('full_name', ''),
+                'faculty_id_number': req.get('employee_id', '') or f"FAC-{random.randint(10000, 99999)}",
+                'department_id': department_id,
+                'designation': req.get('designation', '') or 'Faculty',
+                'email': req.get('email', ''),
+                'phone': req.get('phone', ''),
+                'created_at': datetime.now(timezone.utc).isoformat(),
+            }
+            await db.faculty.insert_one(faculty_doc)
+
         await db.signup_requests.update_one(
             {'id': req_id},
-            {'$set': {'status': 'approved', 'admin_remarks': body.remarks, 'approved_user_id': new_user['id'], 'default_password': default_password, 'updated_at': datetime.now(timezone.utc).isoformat()}}
+            {'$set': {
+                'status': 'approved',
+                'admin_remarks': body.remarks,
+                'approved_user_id': new_user['id'],
+                'default_password': default_password,
+                'resolved_department_id': department_id,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }}
         )
         return {'success': True, 'message': f'Account created. Default password: {default_password}', 'default_password': default_password}
     elif body.action == 'reject':
@@ -1283,6 +1346,71 @@ async def action_signup_request(req_id: str, body: SignupRequestAction, user=Dep
         return {'success': True, 'message': 'Request rejected'}
     else:
         raise HTTPException(status_code=400, detail='Invalid action. Use approve or reject')
+
+@api_router.post("/signup-requests/sync-approved-profiles")
+async def sync_approved_signup_profiles(user=Depends(get_current_user)):
+    """Admin utility: create missing student/faculty profiles for previously approved signup requests."""
+    if user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail='Admin access required')
+
+    approved_reqs = await db.signup_requests.find({'status': 'approved'}, {'_id': 0}).to_list(500)
+    synced = 0
+
+    for req in approved_reqs:
+        linked_user_id = req.get('approved_user_id', '')
+        linked_user = None
+        if linked_user_id:
+            linked_user = await db.users.find_one({'id': linked_user_id}, {'_id': 0})
+        if not linked_user:
+            linked_user = await db.users.find_one({'email': req.get('email', '')}, {'_id': 0})
+        if not linked_user:
+            continue
+
+        department_id = await resolve_department_id(req.get('department', ''))
+
+        if req.get('role') == 'student':
+            existing = await db.students.find_one({'user_id': linked_user['id']}, {'_id': 0, 'id': 1})
+            if existing:
+                continue
+            await db.students.insert_one({
+                'id': str(uuid.uuid4()),
+                'user_id': linked_user['id'],
+                'full_name': req.get('full_name', linked_user.get('name', '')),
+                'roll_number': req.get('roll_number', '') or f"ROLL-{random.randint(10000, 99999)}",
+                'enrollment_number': '',
+                'email': linked_user.get('email', ''),
+                'phone': req.get('phone', ''),
+                'gender': 'Male',
+                'date_of_birth': '',
+                'address': '',
+                'department_id': department_id,
+                'semester': max(1, int(req.get('semester', 1) or 1)),
+                'section': 'A',
+                'admission_date': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                'status': 'active',
+                'created_at': datetime.now(timezone.utc).isoformat(),
+            })
+            await db.users.update_one({'id': linked_user['id']}, {'$set': {'department_id': department_id}})
+            synced += 1
+        elif req.get('role') == 'faculty':
+            existing = await db.faculty.find_one({'user_id': linked_user['id']}, {'_id': 0, 'id': 1})
+            if existing:
+                continue
+            await db.faculty.insert_one({
+                'id': str(uuid.uuid4()),
+                'user_id': linked_user['id'],
+                'name': req.get('full_name', linked_user.get('name', '')),
+                'faculty_id_number': req.get('employee_id', '') or f"FAC-{random.randint(10000, 99999)}",
+                'department_id': department_id,
+                'designation': req.get('designation', '') or 'Faculty',
+                'email': linked_user.get('email', ''),
+                'phone': req.get('phone', ''),
+                'created_at': datetime.now(timezone.utc).isoformat(),
+            })
+            await db.users.update_one({'id': linked_user['id']}, {'$set': {'department_id': department_id}})
+            synced += 1
+
+    return {'success': True, 'synced_profiles': synced, 'checked_requests': len(approved_reqs)}
 
 # ─── APP CONFIG ─────────────────────────────────────────────────────────────────
 
