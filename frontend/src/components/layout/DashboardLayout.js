@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import api from '@/services/api';
 import {
   LayoutDashboard, GraduationCap, Users, Building2, CalendarCheck,
   FileBarChart, Megaphone, MessageSquare, BarChart3, LogOut,
-  Menu, Search, Bell, Sun, Moon, BookOpen
+  Menu, Search, Bell, Sun, Moon, BookOpen, Loader2, X
 } from 'lucide-react';
 
 const menuConfig = {
@@ -80,6 +80,157 @@ function SidebarContent({ items, onItemClick }) {
   );
 }
 
+const typeIcons = {
+  student: GraduationCap,
+  faculty: Users,
+  department: Building2,
+  subject: BookOpen,
+  notice: Megaphone,
+  complaint: MessageSquare,
+};
+
+const typeLabels = {
+  student: 'Student',
+  faculty: 'Faculty',
+  department: 'Department',
+  subject: 'Subject',
+  notice: 'Notice',
+  complaint: 'Complaint',
+};
+
+const typeBadgeColors = {
+  student: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+  faculty: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+  department: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+  subject: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
+  notice: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+  complaint: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+};
+
+function GlobalSearch() {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  const doSearch = useCallback(async (searchQuery) => {
+    if (!searchQuery || searchQuery.trim().length < 2) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.get('/search', { params: { q: searchQuery.trim() } });
+      setResults(res.data.results || []);
+      setOpen(true);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(val), 350);
+  };
+
+  const handleSelect = (result) => {
+    setOpen(false);
+    setQuery('');
+    setResults([]);
+    navigate(`${result.path}?search=${encodeURIComponent(result.title)}`);
+  };
+
+  const handleClear = () => {
+    setQuery('');
+    setResults([]);
+    setOpen(false);
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Group results by type
+  const grouped = results.reduce((acc, r) => {
+    if (!acc[r.type]) acc[r.type] = [];
+    acc[r.type].push(r);
+    return acc;
+  }, {});
+
+  return (
+    <div className="hidden md:flex items-center max-w-sm flex-1 mx-8 relative" ref={containerRef}>
+      <div className="relative w-full">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search students, faculty, departments..."
+          className="pl-9 pr-9 h-9 bg-muted/50 border-0"
+          data-testid="search-input"
+          value={query}
+          onChange={handleChange}
+          onFocus={() => { if (results.length > 0) setOpen(true); }}
+        />
+        {query && (
+          <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-[400px] overflow-y-auto">
+          {results.length === 0 && !loading ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              No results found for "{query}"
+            </div>
+          ) : (
+            Object.entries(grouped).map(([type, items]) => {
+              const Icon = typeIcons[type] || Search;
+              return (
+                <div key={type}>
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30 border-b border-border/50 flex items-center gap-2">
+                    <Icon className="w-3.5 h-3.5" />
+                    {typeLabels[type] || type}s ({items.length})
+                  </div>
+                  {items.map((item, idx) => (
+                    <button
+                      key={`${type}-${idx}`}
+                      onClick={() => handleSelect(item)}
+                      className="w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors flex items-center gap-3 border-b border-border/30 last:border-b-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${typeBadgeColors[type] || 'bg-muted text-muted-foreground'}`}>
+                        {typeLabels[type]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -143,12 +294,7 @@ export default function DashboardLayout() {
             <h2 className="text-lg font-semibold tracking-tight hidden sm:block" data-testid="page-title">{currentPage}</h2>
           </div>
 
-          <div className="hidden md:flex items-center max-w-sm flex-1 mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search..." className="pl-9 h-9 bg-muted/50 border-0" data-testid="search-input" />
-            </div>
-          </div>
+          <GlobalSearch />
 
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleDark} className="h-9 w-9" data-testid="theme-toggle">
