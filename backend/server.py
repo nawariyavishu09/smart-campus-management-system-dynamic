@@ -561,71 +561,128 @@ async def global_search(q: str = "", user=Depends(get_current_user)):
 
     query_str = q.strip()
     regex_filter = {'$regex': query_str, '$options': 'i'}
+    role = user.get('role', 'student')
     results = []
 
-    # Search Students
-    student_query = {'$or': [
-        {'full_name': regex_filter}, {'roll_number': regex_filter}, {'email': regex_filter}
-    ]}
-    students = await db.students.find(student_query, {'_id': 0}).limit(5).to_list(5)
-    for s in students:
-        results.append({
-            'type': 'student', 'title': s['full_name'],
-            'subtitle': f"Roll: {s['roll_number']} | {s['email']}",
-            'path': '/students', 'id': s['id']
-        })
+    # --- ADMIN: sab kuch search kar sakta hai ---
+    if role == 'admin':
+        # Students
+        students = await db.students.find({'$or': [
+            {'full_name': regex_filter}, {'roll_number': regex_filter}, {'email': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for s in students:
+            results.append({'type': 'student', 'title': s['full_name'],
+                'subtitle': f"Roll: {s['roll_number']} | {s.get('email', '')}",
+                'path': '/students', 'id': s['id']})
 
-    # Search Faculty
-    faculty_query = {'$or': [
-        {'name': regex_filter}, {'email': regex_filter}, {'faculty_id_number': regex_filter}
-    ]}
-    faculty = await db.faculty.find(faculty_query, {'_id': 0}).limit(5).to_list(5)
-    for f in faculty:
-        results.append({
-            'type': 'faculty', 'title': f['name'],
-            'subtitle': f"ID: {f['faculty_id_number']} | {f.get('designation', '')}",
-            'path': '/faculty-members', 'id': f['id']
-        })
+        # Faculty
+        faculty = await db.faculty.find({'$or': [
+            {'name': regex_filter}, {'email': regex_filter}, {'faculty_id_number': regex_filter}, {'designation': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for f in faculty:
+            results.append({'type': 'faculty', 'title': f['name'],
+                'subtitle': f"ID: {f['faculty_id_number']} | {f.get('designation', '')}",
+                'path': '/faculty-members', 'id': f['id']})
 
-    # Search Departments
-    dept_query = {'$or': [{'name': regex_filter}, {'code': regex_filter}]}
-    depts = await db.departments.find(dept_query, {'_id': 0}).limit(5).to_list(5)
-    for d in depts:
-        results.append({
-            'type': 'department', 'title': d['name'],
-            'subtitle': f"Code: {d['code']}",
-            'path': '/departments', 'id': d['id']
-        })
+        # Departments
+        depts = await db.departments.find({'$or': [
+            {'name': regex_filter}, {'code': regex_filter}, {'description': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for d in depts:
+            results.append({'type': 'department', 'title': d['name'],
+                'subtitle': f"Code: {d['code']}",
+                'path': '/departments', 'id': d['id']})
 
-    # Search Subjects
-    subj_query = {'$or': [{'name': regex_filter}, {'code': regex_filter}]}
-    subjects = await db.subjects.find(subj_query, {'_id': 0}).limit(5).to_list(5)
-    for s in subjects:
-        results.append({
-            'type': 'subject', 'title': s['name'],
-            'subtitle': f"Code: {s['code']} | Semester {s.get('semester', '')}",
-            'path': '/subjects', 'id': s['id']
-        })
+        # Subjects
+        subjects = await db.subjects.find({'$or': [
+            {'name': regex_filter}, {'code': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for s in subjects:
+            results.append({'type': 'subject', 'title': s['name'],
+                'subtitle': f"Code: {s['code']} | Semester {s.get('semester', '')}",
+                'path': '/subjects', 'id': s['id']})
 
-    # Search Notices
-    notice_query = {'$or': [{'title': regex_filter}, {'description': regex_filter}]}
-    notices = await db.notices.find(notice_query, {'_id': 0}).limit(5).to_list(5)
-    for n in notices:
-        results.append({
-            'type': 'notice', 'title': n['title'],
-            'subtitle': f"Priority: {n.get('priority', 'medium')} | {n.get('date', '')}",
-            'path': '/notices', 'id': n['id']
-        })
+        # Notices
+        notices = await db.notices.find({'$or': [
+            {'title': regex_filter}, {'description': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for n in notices:
+            results.append({'type': 'notice', 'title': n['title'],
+                'subtitle': f"Priority: {n.get('priority', 'medium')} | {n.get('date', '')}",
+                'path': '/notices', 'id': n['id']})
 
-    # Search Complaints
-    complaint_query = {'$or': [{'title': regex_filter}, {'student_name': regex_filter}]}
-    complaints = await db.complaints.find(complaint_query, {'_id': 0}).limit(5).to_list(5)
-    for c in complaints:
-        results.append({
-            'type': 'complaint', 'title': c['title'],
-            'subtitle': f"By: {c.get('student_name', '')} | Status: {c.get('status', '')}",
-            'path': '/complaints', 'id': c['id']
-        })
+        # Complaints
+        complaints = await db.complaints.find({'$or': [
+            {'title': regex_filter}, {'description': regex_filter}, {'student_name': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for c in complaints:
+            results.append({'type': 'complaint', 'title': c['title'],
+                'subtitle': f"By: {c.get('student_name', '')} | Status: {c.get('status', '')}",
+                'path': '/complaints', 'id': c['id']})
+
+    # --- FACULTY: students, subjects, notices search kar sakta hai ---
+    elif role == 'faculty':
+        # Students
+        students = await db.students.find({'$or': [
+            {'full_name': regex_filter}, {'roll_number': regex_filter}, {'email': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for s in students:
+            results.append({'type': 'student', 'title': s['full_name'],
+                'subtitle': f"Roll: {s['roll_number']} | Sem {s.get('semester', '')}",
+                'path': '/students', 'id': s['id']})
+
+        # Subjects
+        subjects = await db.subjects.find({'$or': [
+            {'name': regex_filter}, {'code': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for s in subjects:
+            results.append({'type': 'subject', 'title': s['name'],
+                'subtitle': f"Code: {s['code']} | Semester {s.get('semester', '')}",
+                'path': '/subjects', 'id': s['id']})
+
+        # Notices
+        notices = await db.notices.find({'$or': [
+            {'title': regex_filter}, {'description': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for n in notices:
+            results.append({'type': 'notice', 'title': n['title'],
+                'subtitle': f"Priority: {n.get('priority', 'medium')} | {n.get('date', '')}",
+                'path': '/notices', 'id': n['id']})
+
+    # --- STUDENT: sirf apne notices, subjects aur apni complaints ---
+    else:
+        # Apni student profile dhundo
+        student_profile = await db.students.find_one({'user_id': user['id']}, {'_id': 0})
+
+        # Subjects
+        subjects = await db.subjects.find({'$or': [
+            {'name': regex_filter}, {'code': regex_filter}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for s in subjects:
+            results.append({'type': 'subject', 'title': s['name'],
+                'subtitle': f"Code: {s['code']} | Semester {s.get('semester', '')}",
+                'path': '/marks', 'id': s['id']})
+
+        # Notices (sirf student/all audience)
+        notices = await db.notices.find({'$and': [
+            {'$or': [{'audience': 'all'}, {'audience': 'students'}]},
+            {'$or': [{'title': regex_filter}, {'description': regex_filter}]}
+        ]}, {'_id': 0}).limit(5).to_list(5)
+        for n in notices:
+            results.append({'type': 'notice', 'title': n['title'],
+                'subtitle': f"Priority: {n.get('priority', 'medium')} | {n.get('date', '')}",
+                'path': '/notices', 'id': n['id']})
+
+        # Apni complaints
+        if student_profile:
+            complaints = await db.complaints.find({'$and': [
+                {'student_id': student_profile['id']},
+                {'$or': [{'title': regex_filter}, {'description': regex_filter}]}
+            ]}, {'_id': 0}).limit(5).to_list(5)
+            for c in complaints:
+                results.append({'type': 'complaint', 'title': c['title'],
+                    'subtitle': f"Status: {c.get('status', '')}",
+                    'path': '/complaints', 'id': c['id']})
 
     return {'results': results}
 

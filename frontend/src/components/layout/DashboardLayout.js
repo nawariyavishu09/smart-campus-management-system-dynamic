@@ -109,12 +109,20 @@ const typeBadgeColors = {
 
 function GlobalSearch() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
   const debounceRef = useRef(null);
+
+  const placeholderByRole = {
+    admin: 'Search students, faculty, departments...',
+    faculty: 'Search students, subjects, notices...',
+    student: 'Search notices, subjects, complaints...',
+  };
+  const placeholder = placeholderByRole[user?.role] || 'Search...';
 
   const doSearch = useCallback(async (searchQuery) => {
     if (!searchQuery || searchQuery.trim().length < 2) {
@@ -154,7 +162,6 @@ function GlobalSearch() {
     setOpen(false);
   };
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -165,7 +172,6 @@ function GlobalSearch() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Group results by type
   const grouped = results.reduce((acc, r) => {
     if (!acc[r.type]) acc[r.type] = [];
     acc[r.type].push(r);
@@ -177,7 +183,7 @@ function GlobalSearch() {
       <div className="relative w-full">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search students, faculty, departments..."
+          placeholder={placeholder}
           className="pl-9 pr-9 h-9 bg-muted/50 border-0"
           data-testid="search-input"
           value={query}
