@@ -30,12 +30,13 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ.get('JWT_SECRET', 'smartcampus_jwt_secret_2024_xK9mP2vL8qR3')
 JWT_ALGORITHM = 'HS256'
 SMTP_HOST = os.environ.get('SMTP_HOST', '').strip()
-SMTP_PORT = int(os.environ.get('SMTP_PORT', '587') or 587)
+SMTP_PORT = int((os.environ.get('SMTP_PORT', '465') or '465').strip())
 SMTP_USERNAME = os.environ.get('SMTP_USERNAME', '').strip()
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '').strip()
 SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL', SMTP_USERNAME).strip()
 SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', 'Smart Campus').strip()
-SMTP_USE_TLS = os.environ.get('SMTP_USE_TLS', 'true').strip().lower() not in {'0', 'false', 'no'}
+smtp_tls_default = 'false' if SMTP_PORT == 465 else 'true'
+SMTP_USE_TLS = os.environ.get('SMTP_USE_TLS', smtp_tls_default).strip().lower() not in {'0', 'false', 'no'}
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
 RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', SMTP_FROM_EMAIL).strip()
 LOGIN_URL = os.environ.get('LOGIN_URL', os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/') + '/login').strip()
