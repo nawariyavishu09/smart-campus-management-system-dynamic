@@ -18,10 +18,6 @@ const TYPEWRITER_LINES = [
   "One Platform, Infinite Possibilities.",
 ];
 
-const LONGEST_TYPEWRITER_LINE = TYPEWRITER_LINES.reduce((longest, current) => (
-  current.length > longest.length ? current : longest
-), TYPEWRITER_LINES[0]);
-
 const FEATURES = [
   { icon: GraduationCap, label: "Student Management", desc: "Complete student lifecycle — admissions, profiles, and semester tracking in one place.", color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-500/10", ring: "ring-indigo-500/20", size: "sm" },
   { icon: Users, label: "Faculty Management", desc: "Manage faculty profiles, departments, and subject assignments effortlessly.", color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10", ring: "ring-emerald-500/20", size: "sm" },
@@ -337,14 +333,11 @@ export default function LandingPage() {
 
             {/* Headline */}
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.6 }}
-              className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white leading-[1.08] tracking-tight mb-6">
+              className="text-4xl sm:text-5xl lg:text-6xl xl:text-[5.25rem] font-extrabold text-white leading-[1.02] tracking-tight mb-5">
               The Smart OS for
               <br />
-              <span className="relative block bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                <span aria-hidden className="invisible block pointer-events-none select-none">
-                  {LONGEST_TYPEWRITER_LINE}
-                </span>
-                <span className="absolute inset-0">
+              <span className="mt-2 block min-h-[2.15em] sm:min-h-[1.1em]">
+                <span className="inline-block bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent sm:whitespace-nowrap">
                   <Typewriter lines={TYPEWRITER_LINES} speed={70} pause={2500} />
                 </span>
               </span>
