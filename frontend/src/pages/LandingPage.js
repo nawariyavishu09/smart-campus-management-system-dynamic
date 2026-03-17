@@ -58,11 +58,7 @@ const STATS = [
   { val: 99.9, suffix: "%", label: "Uptime" },
 ];
 
-const PRICING = [
-  { name: "Starter", price: "Free", desc: "For small departments", popular: false, features: ["Up to 50 students", "3 faculty accounts", "Basic attendance", "Notice board", "Email support"], cta: "Get Started" },
-  { name: "Professional", price: "₹999", period: "/mo", desc: "For full campuses", popular: true, features: ["Unlimited students", "Unlimited faculty", "Advanced analytics", "Complaint portal", "Priority support", "Export reports", "API access"], cta: "Start Free Trial" },
-  { name: "Enterprise", price: "Custom", desc: "For universities", popular: false, features: ["Multi-campus support", "Custom integrations", "Dedicated support", "SLA guarantee", "Custom branding", "SSO / LDAP"], cta: "Contact Sales" },
-];
+// Pricing removed — enterprise-only, contact-sales model
 
 const FAQ_DATA = [
   { q: "How do I get started with Smart Campus?", a: "Simply sign up as a student. Admin will review your College ID and activate your account within 24 hours. Faculty accounts are created by the institution admin." },
@@ -177,7 +173,6 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [annual, setAnnual] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -217,7 +212,7 @@ export default function LandingPage() {
           </div>
 
           <div className="hidden md:flex items-center gap-1">
-            {["Features", "How It Works", "Benefits", "Pricing", "FAQ"].map((item) => (
+            {["Features", "How It Works", "Benefits", "FAQ"].map((item) => (
               <a key={item} href={`#${item.toLowerCase().replace(/\s/g, '-')}`}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${scrolled ? "text-muted-foreground hover:text-foreground hover:bg-muted" : "text-white/70 hover:text-white hover:bg-white/10"}`}>
                 {item}
@@ -245,7 +240,7 @@ export default function LandingPage() {
           {mobileMenu && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
               className="md:hidden bg-[#05070F]/98 backdrop-blur-xl border-t border-white/10 px-6 py-4 space-y-2 overflow-hidden">
-              {["Features", "How It Works", "Pricing", "FAQ"].map(item => (
+              {["Features", "How It Works", "FAQ"].map(item => (
                 <a key={item} href={`#${item.toLowerCase().replace(/\s/g, '-')}`} onClick={() => setMobileMenu(false)} className="block px-4 py-3 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">{item}</a>
               ))}
               <button onClick={() => { navigate("/login"); setMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-xl text-white font-semibold hover:bg-white/10 transition-colors">Login</button>
@@ -519,8 +514,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ── */}
-      <section id="pricing" className="py-28 bg-white dark:bg-[#05070F]">
+      {/* ── Pricing removed — enterprise model ── */}
+      {false && <section id="pricing" className="py-28 bg-white dark:bg-[#05070F]">
         <div className="max-w-7xl mx-auto px-6">
           <AnimatedSection className="text-center mb-12">
             <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 text-xs font-semibold mb-5">
@@ -584,7 +579,7 @@ export default function LandingPage() {
             ))}
           </AnimatedSection>
         </div>
-      </section>
+      </section>}
 
       {/* ── FAQ ── */}
       <section id="faq" className="py-28 bg-slate-50/70 dark:bg-white/[0.02]">
@@ -657,7 +652,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-white font-semibold text-sm mb-4">Platform</h4>
               <ul className="space-y-2.5">
-                {["Features", "How It Works", "Pricing", "FAQ"].map(link => (
+                {["Features", "How It Works", "FAQ"].map(link => (
                   <li key={link}><a href={`#${link.toLowerCase().replace(/\s/g, '-')}`} className="text-slate-400 hover:text-white text-sm transition-colors">{link}</a></li>
                 ))}
               </ul>
