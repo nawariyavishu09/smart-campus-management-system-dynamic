@@ -1,7 +1,7 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "framework": "react-cra",
+  "framework": "create-react-app",
   "rewrites": [
     { "source": "/((?!static|asset-manifest|favicon|manifest|robots).*)", "destination": "/index.html" }
   ]
