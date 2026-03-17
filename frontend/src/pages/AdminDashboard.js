@@ -79,11 +79,8 @@ export default function AdminDashboard() {
     try {
       const res = await api.patch(`/signup-requests/${actionTarget.req.id}`, { action: actionTarget.action, remarks: actionRemarks });
       if (actionTarget.action === "approve" && res.data.default_password) {
-        if (res.data.email_sent) {
-          toast.success("Student account approved and login credentials emailed successfully");
-        } else {
-          alert(`Account created, but approval email could not be sent.\n\nDefault Password: ${res.data.default_password}\nEmail Error: ${res.data.email_error || "SMTP not configured"}\n\nShare this password manually with the student.`);
-        }
+        toast.success("Student account approved successfully");
+        alert(`Account created successfully.\n\nDefault Password: ${res.data.default_password}\n\nShare this password manually with the student.`);
       } else if (actionTarget.action === "reject") {
         toast.success("Signup request rejected");
       }
