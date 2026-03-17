@@ -2,10 +2,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, X, Megaphone, CheckCheck, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export default function NotificationPanel({ open, onClose, notifications = [] }) {
+export default function NotificationPanel({
+  open,
+  onClose,
+  notifications = [],
+  unreadCount = 0,
+  onMarkAllRead,
+  onViewNotification,
+}) {
   const navigate = useNavigate();
 
   const handleView = (notif) => {
+    onViewNotification?.(notif);
     onClose();
     navigate("/notices");
   };
@@ -39,11 +47,15 @@ export default function NotificationPanel({ open, onClose, notifications = [] })
                 </div>
                 <div>
                   <h3 className="text-sm font-bold">Notifications</h3>
-                  <p className="text-[10px] text-muted-foreground">{notifications.length} recent</p>
+                  <p className="text-[10px] text-muted-foreground">{notifications.length} recent · {unreadCount} unread</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <button className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors flex items-center gap-1">
+                <button
+                  onClick={onMarkAllRead}
+                  disabled={unreadCount === 0}
+                  className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
                   <CheckCheck className="w-3 h-3" /> Mark all read
                 </button>
                 <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center transition-colors">
@@ -82,7 +94,7 @@ export default function NotificationPanel({ open, onClose, notifications = [] })
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <p className="text-sm font-semibold truncate">{notif.title}</p>
-                            <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
+                            {!notif.read && <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1.5" />}
                           </div>
                           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{notif.description}</p>
                           <div className="flex items-center justify-between mt-2">

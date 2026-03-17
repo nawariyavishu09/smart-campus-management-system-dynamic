@@ -365,9 +365,52 @@ export default function DashboardLayout() {
     return document.documentElement.classList.contains('dark');
   });
   const [notifications, setNotifications] = useState([]);
+  const [allNotificationIds, setAllNotificationIds] = useState([]);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const noticeReadStorageKey = user ? `notice-read-${user.id || user.email}` : 'notice-read-anon';
+
+  const getReadNoticeIds = useCallback(() => {
+    if (!user) return [];
+    try {
+      return JSON.parse(localStorage.getItem(noticeReadStorageKey) || '[]');
+    } catch {
+      return [];
+    }
+  }, [noticeReadStorageKey, user]);
+
+  const applyNoticeReadState = useCallback((notices) => {
+    const readIds = new Set(getReadNoticeIds());
+    return notices.map((notice) => ({
+      ...notice,
+      read: readIds.has(notice.id),
+    }));
+  }, [getReadNoticeIds]);
+
+  const persistReadNoticeIds = useCallback((noticeIds) => {
+    if (!user || noticeIds.length === 0) return;
+    const mergedIds = [...new Set([...getReadNoticeIds(), ...noticeIds])];
+    localStorage.setItem(noticeReadStorageKey, JSON.stringify(mergedIds));
+  }, [getReadNoticeIds, noticeReadStorageKey, user]);
+
+  const loadNotifications = useCallback(async () => {
+    if (!user) {
+      setNotifications([]);
+      setAllNotificationIds([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const res = await api.get('/notices');
+      const notices = res.data?.notices || [];
+      const noticesWithReadState = applyNoticeReadState(notices);
+      setAllNotificationIds(noticesWithReadState.map((notice) => notice.id));
+      setNotifications(noticesWithReadState.slice(0, 8));
+      setUnreadCount(noticesWithReadState.filter((notice) => !notice.read).length);
+    } catch {}
+  }, [applyNoticeReadState, user]);
 
   /* Apply theme on mount */
   useEffect(() => {
@@ -385,14 +428,27 @@ export default function DashboardLayout() {
 
   /* Fetch notifications */
   useEffect(() => {
-    if (user) {
-      api.get('/notices').then((res) => {
-        const notices = res.data?.notices || [];
-        setNotifications(notices.slice(0, 8));
-        setUnreadCount(notices.filter(n => !n.read).length || notices.length);
-      }).catch(() => {});
-    }
-  }, [user]);
+    loadNotifications();
+  }, [loadNotifications]);
+
+  const markNoticeIdsAsRead = useCallback((noticeIds) => {
+    if (noticeIds.length === 0) return;
+    persistReadNoticeIds(noticeIds);
+
+    setNotifications((prev) => prev.map((notice) => (
+      noticeIds.includes(notice.id) ? { ...notice, read: true } : notice
+    )));
+    setUnreadCount((prev) => Math.max(0, prev - noticeIds.length));
+  }, [persistReadNoticeIds]);
+
+  const handleMarkAllNotificationsRead = useCallback(() => {
+    markNoticeIdsAsRead(allNotificationIds);
+  }, [allNotificationIds, markNoticeIdsAsRead]);
+
+  const handleViewNotification = useCallback((notification) => {
+    if (!notification?.id || notification.read) return;
+    markNoticeIdsAsRead([notification.id]);
+  }, [markNoticeIdsAsRead]);
 
   const groups = (menuConfig[user?.role] || menuConfig.student);
   const allItems = flatItems(user?.role);
@@ -574,7 +630,14 @@ export default function DashboardLayout() {
       {/* ── Global Overlays ── */}
       <SupportWidget />
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
-      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} />
+      <NotificationPanel
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkAllRead={handleMarkAllNotificationsRead}
+        onViewNotification={handleViewNotification}
+      />
       <MobileBottomNav />
     </div>
   );

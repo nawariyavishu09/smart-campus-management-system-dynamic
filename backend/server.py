@@ -44,6 +44,7 @@ async def health_check():
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
+RESOLVED_TICKET_RETENTION_MINUTES = 4
 
 # ─── Auth Helpers ───────────────────────────────────────────────────────────────
 
@@ -130,6 +131,11 @@ async def get_faculty_profile_by_user(user_id: str):
 async def resolve_department_id(department_value: str) -> str:
     dept = await find_department_record(department_value)
     return dept['id'] if dept else ""
+
+async def cleanup_expired_resolved_items():
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=RESOLVED_TICKET_RETENTION_MINUTES)).isoformat()
+    await db.support_messages.delete_many({'status': 'resolved', 'updated_at': {'$lte': cutoff}})
+    await db.complaints.delete_many({'status': 'resolved', 'updated_at': {'$lte': cutoff}})
 
 # ─── Pydantic Models ───────────────────────────────────────────────────────────
 
@@ -780,6 +786,7 @@ async def delete_notice(notice_id: str, user=Depends(get_current_user)):
 
 @api_router.get("/complaints")
 async def get_complaints(user=Depends(get_current_user), status_filter: str = Query("", alias="status")):
+    await cleanup_expired_resolved_items()
     query = {}
     if user['role'] == 'student':
         student = await get_student_profile_by_user(user['id'])
@@ -791,6 +798,7 @@ async def get_complaints(user=Depends(get_current_user), status_filter: str = Qu
 
 @api_router.post("/complaints")
 async def create_complaint(data: ComplaintCreate, user=Depends(get_current_user)):
+    await cleanup_expired_resolved_items()
     student = await db.students.find_one({'user_id': user['id']}, {'_id': 0})
     complaint = {
         'id': str(uuid.uuid4()),
@@ -806,6 +814,7 @@ async def create_complaint(data: ComplaintCreate, user=Depends(get_current_user)
 
 @api_router.put("/complaints/{complaint_id}")
 async def update_complaint(complaint_id: str, data: ComplaintUpdate, user=Depends(get_current_user)):
+    await cleanup_expired_resolved_items()
     if user['role'] != 'admin':
         raise HTTPException(status_code=403, detail='Not authorized')
         
@@ -976,6 +985,7 @@ async def global_search(q: str = "", user=Depends(get_current_user)):
 async def dashboard_stats(user=Depends(get_current_user)):
     if user['role'] != 'admin':
         raise HTTPException(status_code=403, detail='Admin access required')
+    await cleanup_expired_resolved_items()
 
     total_students = await db.students.count_documents({})
     total_faculty = await db.faculty.count_documents({})
@@ -1022,6 +1032,7 @@ async def dashboard_stats(user=Depends(get_current_user)):
 async def student_dashboard(user=Depends(get_current_user)):
     if user['role'] != 'student':
         raise HTTPException(status_code=403, detail='Student access required')
+    await cleanup_expired_resolved_items()
 
     student = await get_student_profile_by_user(user['id'])
     if not student:
@@ -1221,6 +1232,7 @@ async def seed_data():
 
 @api_router.post("/support-messages")
 async def create_support_message(body: SupportMessageCreate, user=Depends(get_current_user)):
+    await cleanup_expired_resolved_items()
     if user.get('role') == 'admin':
         raise HTTPException(status_code=403, detail='Admins cannot send support messages')
     if not body.message.strip():
@@ -1242,6 +1254,7 @@ async def create_support_message(body: SupportMessageCreate, user=Depends(get_cu
 
 @api_router.get("/support-messages")
 async def get_support_messages(user=Depends(get_current_user)):
+    await cleanup_expired_resolved_items()
     if user.get('role') == 'admin':
         msgs = await db.support_messages.find({}, {'_id': 0}).sort('created_at', -1).limit(50).to_list(50)
     else:
@@ -1250,6 +1263,7 @@ async def get_support_messages(user=Depends(get_current_user)):
 
 @api_router.patch("/support-messages/{msg_id}")
 async def update_support_message(msg_id: str, body: SupportMessageReply, user=Depends(get_current_user)):
+    await cleanup_expired_resolved_items()
     if user.get('role') != 'admin':
         raise HTTPException(status_code=403, detail='Only admin can update support messages')
     result = await db.support_messages.update_one(
