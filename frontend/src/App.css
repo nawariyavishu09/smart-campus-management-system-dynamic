@@ -1,1 +1,19 @@
-/* Smart Campus custom styles */
+/* Smart Campus custom styles — App-level overrides */
+
+/* Smooth page transitions */
+.page-enter { opacity: 0; transform: translateY(8px); }
+.page-enter-active { opacity: 1; transform: translateY(0); transition: opacity 0.25s ease, transform 0.25s ease; }
+.page-exit { opacity: 1; }
+.page-exit-active { opacity: 0; transition: opacity 0.15s ease; }
+
+/* Chart tooltip override */
+.recharts-tooltip-wrapper { filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08)); }
+.recharts-default-tooltip { border-radius: 12px !important; border: 1px solid rgba(0,0,0,0.06) !important; }
+
+/* Better focus states for accessibility */
+*:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; border-radius: 4px; }
+
+/* Smooth transitions for dark mode */
+*, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.2s; transition-timing-function: ease; }
+/* Exclude animations and transforms from blanket transition */
+.animate-spin, .animate-pulse, .animate-bounce, [class*="animate-"] { transition-property: none; }

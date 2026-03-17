@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import api from "@/services/api";
 import { toast } from "sonner";
 import {
@@ -8,6 +9,12 @@ import {
 } from "lucide-react";
 
 const STEPS = ["Your Details", "College ID", "Review & Submit"];
+
+const stepVariants = {
+  enter: { opacity: 0, x: 30 },
+  center: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -30 },
+};
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -143,10 +150,12 @@ export default function SignupPage() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-8 text-center space-y-5">
-          <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
+        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-8 text-center space-y-5">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-600" />
-          </div>
+          </motion.div>
           <h2 className="text-2xl font-black">Request Submitted!</h2>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Your student signup request has been sent to the admin. They will review your details and College ID, then approve your account. Once approved, your login credentials will be sent to your registered email address.
@@ -162,7 +171,7 @@ export default function SignupPage() {
           >
             Go to Login
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -172,7 +181,8 @@ export default function SignupPage() {
       {/* Grid bg */}
       <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "50px 50px" }} />
 
-      <div className="relative w-full max-w-lg">
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="relative w-full max-w-lg">
         {/* Logo + back */}
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => navigate("/")} className="flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-semibold">
@@ -209,9 +219,10 @@ export default function SignupPage() {
 
           {/* Body */}
           <div className="p-7">
+            <AnimatePresence mode="wait">
             {/* ── Step 0: Details ── */}
             {step === 0 && (
-              <div className="space-y-4">
+              <motion.div key="step0" variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-4">
                 <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/20 p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
                     <GraduationCap className="w-5 h-5 text-white" />
@@ -270,12 +281,12 @@ export default function SignupPage() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* ── Step 1: College ID ── */}
             {step === 1 && (
-              <div className="space-y-4">
+              <motion.div key="step1" variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-4">
                 <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
                   <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
                     Please capture or upload a clear photo of your College ID card. Admin will use this to verify your identity.
@@ -351,12 +362,12 @@ export default function SignupPage() {
                 )}
 
                 <canvas ref={canvasRef} className="hidden" />
-              </div>
+              </motion.div>
             )}
 
             {/* ── Step 2: Review ── */}
             {step === 2 && (
-              <div className="space-y-4">
+              <motion.div key="step2" variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25 }} className="space-y-4">
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-border/50 space-y-3">
                   <Row label="Name" value={form.full_name} />
                   <Row label="Email" value={form.email} />
@@ -380,10 +391,9 @@ export default function SignupPage() {
                     By submitting, you confirm that all details are accurate. Admin will review your College ID and activate your student account. You'll receive your login credentials on your registered email after approval.
                   </p>
                 </div>
-              </div>
+              </motion.div>
             )}
-
-            {/* Navigation buttons */}
+            </AnimatePresence>
             <div className="flex gap-3 mt-6">
               {step > 0 && (
                 <button
@@ -421,7 +431,7 @@ export default function SignupPage() {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

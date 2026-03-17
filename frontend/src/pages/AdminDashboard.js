@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import api from "@/services/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -145,8 +146,9 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in" data-testid="admin-dashboard">
-      <div className="hero-banner bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 shadow-2xl">
+    <div className="space-y-6" data-testid="admin-dashboard">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        className="hero-banner bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 shadow-2xl">
         <div className="grid-pattern" />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
@@ -170,14 +172,17 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 stagger-children">
-        {statCards.map((card) => (
-          <div
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+        {statCards.map((card, i) => (
+          <motion.div
             key={card.key}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 * i }}
             onClick={() => navigate(card.route)}
-            className={`group pro-card cursor-pointer bg-card ${card.accent} animate-fade-in`}
+            className={`group pro-card cursor-pointer bg-card ${card.accent}`}
             data-testid={`stat-${card.key}`}
           >
             <div className="p-5 space-y-3">
@@ -201,7 +206,7 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 

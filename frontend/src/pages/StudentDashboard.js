@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import api from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarCheck, FileBarChart, Megaphone, MessageSquare, BookOpen, GraduationCap } from 'lucide-react';
+import { CalendarCheck, FileBarChart, Megaphone, MessageSquare, BookOpen, GraduationCap, TrendingUp, ArrowUpRight } from 'lucide-react';
 
 export default function StudentDashboard() {
   const [data, setData] = useState(null);
@@ -40,9 +41,10 @@ export default function StudentDashboard() {
   const { student, department, attendance_percentage, marks, avg_marks, notices, complaints, total_subjects } = data;
 
   return (
-    <div className="space-y-6 animate-fade-in" data-testid="student-dashboard">
+    <div className="space-y-6" data-testid="student-dashboard">
       {/* Hero Header */}
-      <div className="hero-banner bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        className="hero-banner bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900">
         <div className="grid-pattern" />
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-6">
@@ -59,67 +61,32 @@ export default function StudentDashboard() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="pro-card bg-card stat-accent-emerald" data-testid="stat-attendance">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-3xl font-bold ${attendance_percentage >= 75 ? 'text-emerald-600 dark:text-emerald-400' : attendance_percentage >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {attendance_percentage}%
-                </p>
-                <p className="text-sm text-muted-foreground font-semibold mt-2">Attendance</p>
-              </div>
-              <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 group-hover:scale-110 transition-transform">
-                <CalendarCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="pro-card bg-card stat-accent-blue" data-testid="stat-avg-marks">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{avg_marks}%</p>
-                <p className="text-sm text-muted-foreground font-semibold mt-2">Avg Marks</p>
-              </div>
-              <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/40 group-hover:scale-110 transition-transform">
-                <FileBarChart className="w-6 h-6 text-blue-600 dark:text-blue-400" strokeWidth={1.5} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="pro-card bg-card stat-accent-amber" data-testid="stat-subjects">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{total_subjects}</p>
-                <p className="text-sm text-muted-foreground font-semibold mt-2">Subjects</p>
-              </div>
-              <div className="p-3 rounded-lg bg-amber-100 dark:bg-amber-900/40 group-hover:scale-110 transition-transform">
-                <BookOpen className="w-6 h-6 text-amber-600 dark:text-amber-400" strokeWidth={1.5} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="pro-card bg-card stat-accent-red" data-testid="stat-complaints">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{complaints?.length || 0}</p>
-                <p className="text-sm text-muted-foreground font-semibold mt-2">Complaints</p>
-              </div>
-              <div className="p-3 rounded-lg bg-rose-100 dark:bg-rose-900/40 group-hover:scale-110 transition-transform">
-                <MessageSquare className="w-6 h-6 text-rose-600 dark:text-rose-400" strokeWidth={1.5} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          { key: 'attendance', value: `${attendance_percentage}%`, label: 'Attendance', icon: CalendarCheck, accent: 'stat-accent-emerald', iconBg: 'bg-emerald-100 dark:bg-emerald-900/40', iconColor: 'text-emerald-600 dark:text-emerald-400', valueColor: attendance_percentage >= 75 ? 'text-emerald-600 dark:text-emerald-400' : attendance_percentage >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400' },
+          { key: 'avg-marks', value: `${avg_marks}%`, label: 'Avg Marks', icon: FileBarChart, accent: 'stat-accent-blue', iconBg: 'bg-blue-100 dark:bg-blue-900/40', iconColor: 'text-blue-600 dark:text-blue-400', valueColor: 'text-blue-600 dark:text-blue-400' },
+          { key: 'subjects', value: total_subjects, label: 'Subjects', icon: BookOpen, accent: 'stat-accent-amber', iconBg: 'bg-amber-100 dark:bg-amber-900/40', iconColor: 'text-amber-600 dark:text-amber-400', valueColor: 'text-amber-600 dark:text-amber-400' },
+          { key: 'complaints', value: complaints?.length || 0, label: 'Complaints', icon: MessageSquare, accent: 'stat-accent-red', iconBg: 'bg-rose-100 dark:bg-rose-900/40', iconColor: 'text-rose-600 dark:text-rose-400', valueColor: 'text-rose-600 dark:text-rose-400' },
+        ].map((stat, i) => (
+          <motion.div key={stat.key} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 * i }}>
+            <Card className={`pro-card bg-card ${stat.accent} group`} data-testid={`stat-${stat.key}`}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-3xl font-bold ${stat.valueColor}`}>{stat.value}</p>
+                    <p className="text-sm text-muted-foreground font-semibold mt-2">{stat.label}</p>
+                  </div>
+                  <div className={`p-3 rounded-xl ${stat.iconBg} group-hover:scale-110 transition-transform`}>
+                    <stat.icon className={`w-6 h-6 ${stat.iconColor}`} strokeWidth={1.5} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

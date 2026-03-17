@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import SupportWidget from '@/components/ui/SupportWidget';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
   LayoutDashboard, GraduationCap, Users, Building2, CalendarCheck,
   FileBarChart, Megaphone, MessageSquare, BarChart3, LogOut,
   Menu, Search, Bell, Sun, Moon, BookOpen, Loader2, X, ChevronRight,
-  Sparkles, Shield
+  Sparkles, Shield, Command
 } from 'lucide-react';
 
 const menuConfig = {
@@ -156,6 +157,7 @@ function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
   const debounceRef = useRef(null);
 
   const placeholderByRole = {
@@ -164,6 +166,22 @@ function GlobalSearch() {
     student: 'Search notices, subjects, complaints...',
   };
   const placeholder = placeholderByRole[user?.role] || 'Search...';
+
+  // Ctrl+K shortcut
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+      if (e.key === 'Escape') {
+        setOpen(false);
+        inputRef.current?.blur();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const doSearch = useCallback(async (searchQuery) => {
     if (!searchQuery || searchQuery.trim().length < 2) {
@@ -229,17 +247,22 @@ function GlobalSearch() {
       <div className="relative w-full">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
+          ref={inputRef}
           placeholder={placeholder}
-          className="pl-9 pr-9 h-9 bg-muted/50 border-0"
+          className="pl-9 pr-20 h-9 bg-muted/50 border-0 rounded-xl"
           data-testid="search-input"
           value={query}
           onChange={handleChange}
           onFocus={() => { if (results.length > 0) setOpen(true); }}
         />
-        {query && (
+        {query ? (
           <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
           </button>
+        ) : (
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold text-muted-foreground/60 bg-background border border-border/50">
+            <Command className="w-2.5 h-2.5" />K
+          </kbd>
         )}
       </div>
 
@@ -442,7 +465,17 @@ export default function DashboardLayout() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-4 lg:p-6 bg-slate-50/50 dark:bg-background" data-testid="main-content">
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
       <SupportWidget />

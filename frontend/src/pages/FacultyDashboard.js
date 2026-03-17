@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import api from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, BookOpen, Megaphone, Building2, CalendarCheck, FileBarChart } from 'lucide-react';
+import { Users, BookOpen, Megaphone, Building2, CalendarCheck, FileBarChart, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
@@ -42,114 +43,86 @@ export default function FacultyDashboard() {
   const { faculty, department, subjects, students_count, notices } = data;
 
   return (
-    <div className="space-y-6 animate-fade-in" data-testid="faculty-dashboard">
+    <div className="space-y-6" data-testid="faculty-dashboard">
       {/* Hero Header */}
-      <div className="hero-banner bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        className="hero-banner bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900">
         <div className="grid-pattern" />
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-blue-500/20 backdrop-blur-md rounded-lg border border-blue-400/30">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-300 to-blue-400 flex items-center justify-center text-slate-900 font-bold text-lg">
+            <div className="p-3 bg-emerald-500/20 backdrop-blur-md rounded-2xl border border-emerald-400/30 shadow-lg">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-300 to-teal-400 flex items-center justify-center text-slate-900 font-bold text-lg shadow-lg">
                 {faculty.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Welcome, {faculty.name}!</h1>
-              <p className="text-blue-200 text-sm font-medium mt-1">
+              <h1 className="text-4xl font-extrabold tracking-tight">Welcome, {faculty.name}!</h1>
+              <p className="text-emerald-100/90 text-sm font-medium mt-1">
                 {faculty.faculty_id_number} • {faculty.designation} • {department?.name || 'N/A'}
               </p>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="pro-card bg-card stat-accent-blue" data-testid="stat-students-count">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-blue-600">{students_count}</p>
-                <p className="text-sm text-muted-foreground font-medium mt-2">Students</p>
-              </div>
-              <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-950/30">
-                <Users className="w-6 h-6 text-blue-600" strokeWidth={1.5} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="pro-card bg-card stat-accent-emerald" data-testid="stat-subjects-count">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-emerald-600">{subjects?.length || 0}</p>
-                <p className="text-sm text-muted-foreground font-medium mt-2">Subjects</p>
-              </div>
-              <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-950/30">
-                <BookOpen className="w-6 h-6 text-emerald-600" strokeWidth={1.5} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="pro-card bg-card stat-accent-amber" data-testid="stat-department">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-amber-600">{department?.code || '-'}</p>
-                <p className="text-sm text-muted-foreground font-medium mt-2">{department?.name || 'Department'}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-amber-100 dark:bg-amber-950/30">
-                <Building2 className="w-6 h-6 text-amber-600" strokeWidth={1.5} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          { key: 'students-count', value: students_count, label: 'Students', icon: Users, accent: 'stat-accent-blue', iconBg: 'bg-blue-100 dark:bg-blue-950/30', iconColor: 'text-blue-600' },
+          { key: 'subjects-count', value: subjects?.length || 0, label: 'Subjects', icon: BookOpen, accent: 'stat-accent-emerald', iconBg: 'bg-emerald-100 dark:bg-emerald-950/30', iconColor: 'text-emerald-600' },
+          { key: 'department', value: department?.code || '-', label: department?.name || 'Department', icon: Building2, accent: 'stat-accent-amber', iconBg: 'bg-amber-100 dark:bg-amber-950/30', iconColor: 'text-amber-600', small: true },
+        ].map((stat, i) => (
+          <motion.div key={stat.key} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 * i }}>
+            <Card className={`pro-card bg-card ${stat.accent} group`} data-testid={`stat-${stat.key}`}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`${stat.small ? 'text-2xl' : 'text-3xl'} font-bold ${stat.iconColor}`}>{stat.value}</p>
+                    <p className="text-sm text-muted-foreground font-medium mt-2">{stat.label}</p>
+                  </div>
+                  <div className={`p-3 rounded-xl ${stat.iconBg} group-hover:scale-110 transition-transform`}>
+                    <stat.icon className={`w-6 h-6 ${stat.iconColor}`} strokeWidth={1.5} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Quick Actions */}
-      <Card className="pro-card bg-card overflow-hidden">
-        <CardHeader className="pb-4 border-b border-border/40">
-          <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
-              className="h-auto py-6 px-4 flex flex-col items-center gap-3 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors" 
-              onClick={() => navigate('/attendance')} 
-              data-testid="quick-attendance">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/30">
-                <CalendarCheck className="w-5 h-5 text-blue-600" />
-              </div>
-              <span className="text-sm font-medium">Mark Attendance</span>
-            </Button>
-
-            <Button 
-              variant="outline" 
-              className="h-auto py-6 px-4 flex flex-col items-center gap-3 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors" 
-              onClick={() => navigate('/marks')} 
-              data-testid="quick-marks">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/30">
-                <FileBarChart className="w-5 h-5 text-emerald-600" />
-              </div>
-              <span className="text-sm font-medium">Enter Marks</span>
-            </Button>
-
-            <Button 
-              variant="outline" 
-              className="h-auto py-6 px-4 flex flex-col items-center gap-3 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors" 
-              onClick={() => navigate('/notices')} 
-              data-testid="quick-notices">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/30">
-                <Megaphone className="w-5 h-5 text-purple-600" />
-              </div>
-              <span className="text-sm font-medium">Post Notice</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.2 }}>
+        <Card className="pro-card bg-card overflow-hidden">
+          <CardHeader className="pb-4 border-b border-border/40">
+            <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { label: 'Mark Attendance', icon: CalendarCheck, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-950/30', path: '/attendance', testId: 'quick-attendance' },
+                { label: 'Enter Marks', icon: FileBarChart, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-950/30', path: '/marks', testId: 'quick-marks' },
+                { label: 'Post Notice', icon: Megaphone, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-950/30', path: '/notices', testId: 'quick-notices' },
+              ].map((action) => (
+                <Button
+                  key={action.label}
+                  variant="outline"
+                  className="h-auto py-6 px-4 flex flex-col items-center gap-3 rounded-xl border border-border/60 hover:border-indigo-300 dark:hover:border-indigo-600 hover:bg-muted/50 transition-all group"
+                  onClick={() => navigate(action.path)}
+                  data-testid={action.testId}
+                >
+                  <div className={`p-2.5 rounded-xl ${action.bg} group-hover:scale-110 transition-transform`}>
+                    <action.icon className={`w-5 h-5 ${action.color}`} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold">{action.label}</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-foreground transition-colors" />
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Subjects & Notices */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
