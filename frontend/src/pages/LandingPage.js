@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import ParticleCanvas from "@/components/ui/ParticleCanvas";
@@ -6,7 +6,7 @@ import {
   GraduationCap, Users, Building2, CalendarCheck, FileBarChart,
   Megaphone, MessageSquare, BarChart3, Shield, BookOpen, ArrowRight,
   Sparkles, CheckCircle2, Star, ChevronDown, Menu, X, Clock,
-  Zap, Globe, Lock, Cloud, ChevronRight, Play, Quote, Check,
+  Zap, Globe, Lock, Cloud, ChevronRight, Play, Quote,
   HelpCircle, Minus, Plus
 } from "lucide-react";
 
@@ -45,6 +45,50 @@ const BENEFITS = [
   { icon: Zap, title: "Lightning Fast", desc: "Optimized performance ensures smooth experience for all users." },
 ];
 
+const PLATFORM_PILLARS = [
+  {
+    icon: Building2,
+    title: "Unified Academic Records",
+    desc: "Profiles, departments, semesters, attendance, marks, and grievance history stay connected in one operational view.",
+    accent: "from-indigo-500 to-blue-500",
+    chip: "Single source of truth",
+  },
+  {
+    icon: Shield,
+    title: "Role-Based Governance",
+    desc: "Admins control approvals and policy, faculty manage classrooms, and students get a clean self-service experience.",
+    accent: "from-amber-500 to-orange-500",
+    chip: "Controlled access",
+  },
+  {
+    icon: BarChart3,
+    title: "Decision-Ready Analytics",
+    desc: "Track attendance risk, academic performance, and unresolved issues early with dashboards built for action.",
+    accent: "from-emerald-500 to-teal-500",
+    chip: "Actionable insights",
+  },
+  {
+    icon: Cloud,
+    title: "Cloud Access Everywhere",
+    desc: "A responsive experience across desktop, tablet, and mobile means campus operations continue from anywhere.",
+    accent: "from-cyan-500 to-sky-500",
+    chip: "Always available",
+  },
+];
+
+const OPERATIONS_CHECKLIST = [
+  "Department-wise onboarding and subject catalog setup",
+  "Role-based portals for admin, faculty, and students",
+  "Attendance, marks, notices, complaints, and support in one workflow",
+  "Operational visibility for department heads and institution leadership",
+];
+
+const HERO_SIGNAL_CARDS = [
+  { label: "Departments Live", value: "10+", tone: "from-indigo-500/20 to-violet-500/10 border-indigo-500/20" },
+  { label: "Attendance Visibility", value: "Real-time", tone: "from-emerald-500/20 to-teal-500/10 border-emerald-500/20" },
+  { label: "Student Support", value: "Tracked", tone: "from-amber-500/20 to-orange-500/10 border-amber-500/20" },
+];
+
 const TESTIMONIALS = [
   { name: "Dr. Priya Sharma", role: "Dean of Academics", institution: "Delhi University", quote: "Smart Campus has transformed how we manage our departments. The analytics dashboard alone saves us hours every week.", avatar: "PS" },
   { name: "Prof. Rajesh Kumar", role: "HOD, Computer Science", institution: "IIT Delhi", quote: "The attendance and marks management system is incredibly intuitive. Our faculty adopted it within a day.", avatar: "RK" },
@@ -71,9 +115,9 @@ const FAQ_DATA = [
 
 /* ── Animation Variants ── */
 const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
+  hidden: { opacity: 0, y: 34, scale: 0.97, filter: "blur(8px)" },
   visible: (i = 0) => ({
-    opacity: 1, y: 0,
+    opacity: 1, y: 0, scale: 1, filter: "blur(0px)",
     transition: { duration: 0.5, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }
   }),
 };
@@ -84,7 +128,7 @@ const stagger = {
 
 function AnimatedSection({ children, className }) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
+  const isInView = useInView(ref, { once: false, margin: "-10% 0px -12% 0px", amount: 0.18 });
   return (
     <motion.div ref={ref} initial="hidden" animate={isInView ? "visible" : "hidden"} variants={stagger} className={className}>
       {children}
@@ -95,11 +139,14 @@ function AnimatedSection({ children, className }) {
 /* ── Animated Counter ── */
 function Counter({ end, suffix = "", duration = 2000 }) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true });
+  const isInView = useInView(ref, { once: false, amount: 0.5 });
   const [val, setVal] = useState(0);
 
   useEffect(() => {
-    if (!isInView) return;
+    if (!isInView) {
+      setVal(0);
+      return;
+    }
     let start = 0;
     const step = end / (duration / 16);
     const timer = setInterval(() => {
@@ -212,7 +259,7 @@ export default function LandingPage() {
           </div>
 
           <div className="hidden md:flex items-center gap-1">
-            {["Features", "How It Works", "Benefits", "FAQ"].map((item) => (
+            {["Features", "How It Works", "Benefits", "Operations", "FAQ"].map((item) => (
               <a key={item} href={`#${item.toLowerCase().replace(/\s/g, '-')}`}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${scrolled ? "text-muted-foreground hover:text-foreground hover:bg-muted" : "text-white/70 hover:text-white hover:bg-white/10"}`}>
                 {item}
@@ -240,7 +287,7 @@ export default function LandingPage() {
           {mobileMenu && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
               className="md:hidden bg-[#05070F]/98 backdrop-blur-xl border-t border-white/10 px-6 py-4 space-y-2 overflow-hidden">
-              {["Features", "How It Works", "FAQ"].map(item => (
+              {["Features", "How It Works", "Benefits", "Operations", "FAQ"].map(item => (
                 <a key={item} href={`#${item.toLowerCase().replace(/\s/g, '-')}`} onClick={() => setMobileMenu(false)} className="block px-4 py-3 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">{item}</a>
               ))}
               <button onClick={() => { navigate("/login"); setMobileMenu(false); }} className="w-full text-left px-4 py-3 rounded-xl text-white font-semibold hover:bg-white/10 transition-colors">Login</button>
@@ -321,6 +368,25 @@ export default function LandingPage() {
                 <Lock className="w-3 h-3" /> 256-bit SSL Encrypted &middot; SOC 2 Compliant
               </span>
             </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.65, duration: 0.7 }}
+              className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-10"
+            >
+              {HERO_SIGNAL_CARDS.map((card, index) => (
+                <motion.div
+                  key={card.label}
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 5 + index, repeat: Infinity, ease: "easeInOut" }}
+                  className={`rounded-2xl border bg-gradient-to-br ${card.tone} px-4 py-4 backdrop-blur-sm`}
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-400">{card.label}</p>
+                  <p className="mt-2 text-lg font-extrabold text-white">{card.value}</p>
+                </motion.div>
+              ))}
+            </motion.div>
           </div>
 
           {/* Stats row with animated counters */}
@@ -364,6 +430,8 @@ export default function LandingPage() {
           <AnimatedSection className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 auto-rows-auto">
             {FEATURES.map((f, i) => (
               <motion.div key={f.label} variants={fadeUp} custom={i}
+                whileHover={{ y: -8, scale: 1.015 }}
+                transition={{ type: "spring", stiffness: 220, damping: 18 }}
                 className={`group p-6 rounded-2xl bg-white dark:bg-white/[0.03] border border-border/40 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/[0.04] hover:-translate-y-1
                   ${f.size === 'lg' ? 'sm:col-span-2' : ''}`}>
                 <div className={`w-12 h-12 rounded-xl ${f.bg} ring-1 ${f.ring} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
@@ -392,7 +460,7 @@ export default function LandingPage() {
 
           <AnimatedSection className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {STEPS.map((step, i) => (
-              <motion.div key={step.num} variants={fadeUp} custom={i} className="relative group">
+              <motion.div key={step.num} variants={fadeUp} custom={i} whileHover={{ y: -8 }} transition={{ type: "spring", stiffness: 220, damping: 18 }} className="relative group">
                 <div className="p-6 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-border/40 hover:border-emerald-200 dark:hover:border-emerald-500/30 transition-all duration-300 hover:shadow-lg h-full">
                   <div className="flex items-center gap-3 mb-4">
                     <span className="text-3xl font-extrabold bg-gradient-to-br from-emerald-400 to-teal-400 bg-clip-text text-transparent">{step.num}</span>
@@ -430,6 +498,8 @@ export default function LandingPage() {
           <AnimatedSection className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {BENEFITS.map((b, i) => (
               <motion.div key={b.title} variants={fadeUp} custom={i}
+                whileHover={{ y: -8, scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 220, damping: 18 }}
                 className="flex gap-4 p-6 rounded-2xl bg-white dark:bg-white/[0.03] border border-border/40 hover:shadow-lg transition-all duration-300 group">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                   <b.icon className="w-5 h-5 text-amber-600 dark:text-amber-400" strokeWidth={1.5} />
@@ -441,6 +511,105 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </AnimatedSection>
+        </div>
+      </section>
+
+      {/* ── Operations ── */}
+      <section id="operations" className="py-28 bg-white dark:bg-[#05070F] relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 left-[8%] w-72 h-72 rounded-full bg-indigo-500/5 blur-[100px]" />
+          <div className="absolute bottom-10 right-[12%] w-72 h-72 rounded-full bg-cyan-500/5 blur-[110px]" />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <AnimatedSection className="text-center mb-16">
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-xs font-semibold mb-5">
+              <Globe className="w-3.5 h-3.5" /> Campus Operations
+            </motion.div>
+            <motion.h2 variants={fadeUp} className="text-4xl sm:text-5xl font-extrabold text-foreground tracking-tight">
+              Built to Run the{" "}
+              <span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">Modern Campus</span>
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-muted-foreground mt-4 max-w-3xl mx-auto text-lg leading-relaxed">
+              SmartCampus is designed for the daily reality of institutions: approvals, class operations, academic tracking,
+              issue resolution, and leadership visibility all working from one shared system.
+            </motion.p>
+          </AnimatedSection>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-8 items-start">
+            <AnimatedSection className="h-full">
+              <motion.div
+                variants={fadeUp}
+                whileHover={{ y: -8, scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 220, damping: 18 }}
+                className="relative overflow-hidden rounded-[28px] border border-border/40 bg-slate-50 dark:bg-white/[0.03] p-8 shadow-xl shadow-cyan-500/[0.03]"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.12),_transparent_38%)] pointer-events-none" />
+                <div className="relative z-10">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em]">
+                    Operational Intelligence
+                  </span>
+
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-5 mb-4">
+                    What institutions get on day one
+                  </h3>
+
+                  <p className="text-muted-foreground leading-relaxed max-w-2xl">
+                    Instead of separate tools for admissions, notices, class tracking, and support, teams can operate with one
+                    connected workflow that reduces follow-ups and gives leadership clearer visibility.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4 mt-8">
+                    {[
+                      { label: "Role Portals", value: "3", note: "Admin, Faculty, Student" },
+                      { label: "Core Workflows", value: "6+", note: "Attendance to support" },
+                      { label: "Academic Visibility", value: "Live", note: "Attendance and marks" },
+                      { label: "Operational Mode", value: "Cloud", note: "Desktop and mobile ready" },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-border/40 bg-white/70 dark:bg-white/[0.02] p-4">
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{item.label}</p>
+                        <p className="mt-2 text-2xl font-extrabold text-foreground">{item.value}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{item.note}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-8 space-y-3">
+                    {OPERATIONS_CHECKLIST.map((item, index) => (
+                      <motion.div key={item} variants={fadeUp} custom={index} className="flex items-start gap-3 rounded-2xl border border-border/30 bg-white/60 dark:bg-white/[0.02] px-4 py-4">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{item}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatedSection>
+
+            <AnimatedSection className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {PLATFORM_PILLARS.map((pillar, index) => (
+                <motion.div
+                  key={pillar.title}
+                  variants={fadeUp}
+                  custom={index}
+                  whileHover={{ y: -8, scale: 1.015 }}
+                  transition={{ type: "spring", stiffness: 220, damping: 18 }}
+                  className="rounded-2xl border border-border/40 bg-white dark:bg-white/[0.03] p-6 shadow-lg shadow-slate-950/[0.02]"
+                >
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${pillar.accent} flex items-center justify-center mb-5 shadow-lg`}>
+                    <pillar.icon className="w-6 h-6 text-white" strokeWidth={1.6} />
+                  </div>
+                  <span className="inline-flex rounded-full bg-slate-100 dark:bg-white/[0.06] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-4">
+                    {pillar.chip}
+                  </span>
+                  <h3 className="text-lg font-extrabold text-foreground mb-2">{pillar.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{pillar.desc}</p>
+                </motion.div>
+              ))}
+            </AnimatedSection>
+          </div>
         </div>
       </section>
 
@@ -459,6 +628,8 @@ export default function LandingPage() {
               { role: "Student", icon: GraduationCap, grad: "from-indigo-500 to-violet-500", bg: "from-indigo-50 to-violet-50 dark:from-indigo-950/20 dark:to-violet-950/20", border: "border-indigo-100 dark:border-indigo-800/30", perks: ["View attendance records", "Check marks & grades", "Read notice board", "File complaints", "Raise support tickets"] },
             ].map(({ role, icon: Icon, grad, bg, border, perks }, i) => (
               <motion.div key={role} variants={fadeUp} custom={i}
+                whileHover={{ y: -10, scale: 1.015 }}
+                transition={{ type: "spring", stiffness: 220, damping: 18 }}
                 className={`rounded-2xl bg-gradient-to-br ${bg} border ${border} p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
                 <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center mb-6 shadow-lg`}>
                   <Icon className="w-7 h-7 text-white" />
@@ -493,6 +664,8 @@ export default function LandingPage() {
           <AnimatedSection className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {TESTIMONIALS.map((t, i) => (
               <motion.div key={t.name} variants={fadeUp} custom={i}
+                whileHover={{ y: -8, scale: 1.012 }}
+                transition={{ type: "spring", stiffness: 220, damping: 18 }}
                 className="p-6 rounded-2xl bg-white dark:bg-white/[0.03] border border-border/40 hover:shadow-lg transition-all duration-300 relative">
                 <Quote className="absolute top-4 right-4 w-8 h-8 text-indigo-100 dark:text-indigo-500/10" />
                 <div className="flex items-center gap-1 mb-4">
@@ -585,7 +758,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-white font-semibold text-sm mb-4">Platform</h4>
               <ul className="space-y-2.5">
-                {["Features", "How It Works", "FAQ"].map(link => (
+                {["Features", "How It Works", "Benefits", "Operations", "FAQ"].map(link => (
                   <li key={link}><a href={`#${link.toLowerCase().replace(/\s/g, '-')}`} className="text-slate-400 hover:text-white text-sm transition-colors">{link}</a></li>
                 ))}
               </ul>
