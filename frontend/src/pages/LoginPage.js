@@ -126,6 +126,27 @@ export default function LoginPage() {
                 </div>
               ))}
             </div>
+
+            {/* Floating Feature Cards */}
+            <div className="grid grid-cols-3 gap-3 pt-6">
+              {[
+                { emoji: '🎯', label: 'Track Attendance', desc: 'Real-time records', delay: 0.3 },
+                { emoji: '📊', label: 'View Analytics', desc: 'Department insights', delay: 0.4 },
+                { emoji: '📋', label: 'Manage Marks', desc: 'Grades & results', delay: 0.5 },
+              ].map((card) => (
+                <motion.div
+                  key={card.label}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: card.delay, duration: 0.5 }}
+                  className="group p-3 rounded-2xl bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/10 transition-all duration-300 text-center"
+                >
+                  <span className="text-xl block mb-1.5">{card.emoji}</span>
+                  <p className="text-[11px] font-bold text-white/90 leading-tight">{card.label}</p>
+                  <p className="text-[9px] text-white/40 mt-0.5">{card.desc}</p>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
 
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}

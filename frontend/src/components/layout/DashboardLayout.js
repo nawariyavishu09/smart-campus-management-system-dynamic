@@ -3,6 +3,9 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import SupportWidget from '@/components/ui/SupportWidget';
+import CommandPalette from '@/components/ui/CommandPalette';
+import NotificationPanel from '@/components/ui/NotificationPanel';
+import MobileBottomNav from '@/components/ui/MobileBottomNav';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
@@ -167,13 +170,9 @@ function GlobalSearch() {
   };
   const placeholder = placeholderByRole[user?.role] || 'Search...';
 
-  // Ctrl+K shortcut
+  // Ctrl+K shortcut — handled at DashboardLayout level for CommandPalette
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
       if (e.key === 'Escape') {
         setOpen(false);
         inputRef.current?.blur();
@@ -313,6 +312,20 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
   const [notifications, setNotifications] = useState([]);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  // Ctrl+K shortcut for command palette
+  useEffect(() => {
+    const handleKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen(v => !v);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -381,53 +394,13 @@ export default function DashboardLayout() {
               {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4" />}
             </Button>
 
-            {/* Notification Bell */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative" data-testid="notifications-btn">
-                  <Bell className="w-4 h-4" />
-                  {notifications.length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-background" />
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 rounded-2xl shadow-2xl border-border/50">
-                <div className="px-4 pt-4 pb-3 border-b border-border/40">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-sm">Notifications</p>
-                    <Badge className="bg-red-500/10 text-red-600 border-red-200 text-[10px] font-semibold">{notifications.length} New</Badge>
-                  </div>
-                </div>
-                <div className="max-h-[280px] overflow-y-auto py-2">
-                  {notifications.length === 0 ? (
-                    <div className="p-6 text-center">
-                      <Bell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">All caught up!</p>
-                    </div>
-                  ) : (
-                    notifications.map((notif) => (
-                      <DropdownMenuItem key={notif.id} className="cursor-pointer px-4 py-3 focus:bg-muted flex items-start gap-3" onClick={() => navigate('/notices')}>
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                          <Megaphone className="w-3.5 h-3.5 text-purple-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold truncate">{notif.title}</p>
-                          <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{notif.description}</p>
-                          <p className="text-[10px] text-muted-foreground/70 mt-1">
-                            {new Date(notif.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                          </p>
-                        </div>
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                </div>
-                <div className="px-4 py-3 border-t border-border/40">
-                  <button className="w-full text-center text-xs text-primary font-semibold hover:underline" onClick={() => navigate('/notices')}>
-                    View all notices →
-                  </button>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Notification Bell — opens slide-in panel */}
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl relative" data-testid="notifications-btn" onClick={() => setNotifOpen(true)}>
+              <Bell className="w-4 h-4" />
+              {notifications.length > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-background" />
+              )}
+            </Button>
 
             {/* Profile Dropdown */}
             <DropdownMenu>
@@ -464,7 +437,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-6 bg-slate-50/50 dark:bg-background" data-testid="main-content">
+        <main className="flex-1 overflow-auto p-4 lg:p-6 pb-20 lg:pb-6 bg-slate-50/50 dark:bg-background" data-testid="main-content">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -479,6 +452,9 @@ export default function DashboardLayout() {
         </main>
       </div>
       <SupportWidget />
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} />
+      <MobileBottomNav />
     </div>
   );
 }

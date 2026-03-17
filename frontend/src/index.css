@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -37,25 +37,25 @@
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 20% 95%;
-    --card: 224 50% 8%;
-    --card-foreground: 210 20% 95%;
-    --popover: 224 50% 8%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 234 89% 68%;
+    --background: 228 80% 3%;
+    --foreground: 210 40% 96%;
+    --card: 228 50% 6%;
+    --card-foreground: 210 40% 96%;
+    --popover: 228 50% 6%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 224 50% 12%;
+    --secondary: 228 50% 10%;
     --secondary-foreground: 210 20% 70%;
-    --muted: 224 50% 12%;
+    --muted: 228 50% 10%;
     --muted-foreground: 215 20% 60%;
-    --accent: 224 50% 12%;
-    --accent-foreground: 210 20% 95%;
+    --accent: 228 50% 10%;
+    --accent-foreground: 210 40% 96%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
-    --border: 224 30% 15%;
-    --input: 224 30% 15%;
-    --ring: 234 89% 68%;
+    --border: 228 30% 13%;
+    --input: 228 30% 13%;
+    --ring: 217 91% 60%;
     --chart-1: 234 89% 68%;
     --chart-2: 160 84% 45%;
     --chart-3: 38 92% 55%;
@@ -81,6 +81,9 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
     letter-spacing: -0.025em;
+  }
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }
 }
 
@@ -173,6 +176,44 @@
 .animate-gradient-x     { animation: gradient-x 8s ease infinite; background-size: 200% 200%; }
 .animate-slide-up-fade  { animation: slide-up-fade 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
 .animate-blur-in        { animation: blur-in 0.5s ease-out forwards; }
+
+/* ── Typewriter cursor ── */
+@keyframes blink-caret {
+  0%, 100% { border-color: transparent; }
+  50%      { border-color: currentColor; }
+}
+.typewriter-cursor {
+  border-right: 2px solid;
+  animation: blink-caret 0.75s step-end infinite;
+}
+
+/* ── Announcement ticker ── */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-ticker { animation: ticker-scroll 30s linear infinite; }
+
+/* ── Particle dots pulse ── */
+@keyframes particle-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+.animate-particle-pulse { animation: particle-pulse 3s ease-in-out infinite; }
+
+/* ── Glow ring ── */
+@keyframes glow-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(99,102,241,0); }
+}
+.animate-glow-ring { animation: glow-ring 2s ease-in-out infinite; }
+
+/* ── Counter number animation ── */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(12px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-count-up { animation: count-up 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
 
 /* Staggered children */
 .stagger-children > * { opacity: 0; animation: fade-in-up 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
@@ -399,3 +440,6 @@
 .grade-C  { @apply bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400; }
 .grade-D  { @apply bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400; }
 .grade-F  { @apply bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400; }
+
+/* ── Safe area for bottom nav ── */
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
